@@ -102,7 +102,8 @@ func takeRecord(dev tv.Device, listPath, host string, names []string) (*Record, 
 		Packages: map[string]string{},
 	}
 
-	for _, name := range withHomePackage(names, home) {
+	recorded := withInstalledStockLaunchers(withHomePackage(names, home), packages)
+	for _, name := range recorded {
 		record.Packages[name] = packages.stateOf(name)
 	}
 
@@ -137,6 +138,17 @@ func withHomePackage(names []string, home *string) []string {
 	}
 
 	return append(slices.Clone(names), tv.PackageOf(*home))
+}
+
+func withInstalledStockLaunchers(names []string, packages *packageSnapshot) []string {
+	recorded := slices.Clone(names)
+	for _, stockLauncher := range tv.KnownStockLaunchers {
+		if packages.installed[stockLauncher] && !slices.Contains(recorded, stockLauncher) {
+			recorded = append(recorded, stockLauncher)
+		}
+	}
+
+	return recorded
 }
 
 func reportNewRecord(out io.Writer, record *Record, path string) {

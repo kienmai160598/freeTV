@@ -23,6 +23,13 @@ const (
 	SetupWizard      = "com.google.android.tungsten.setupwraith"
 )
 
+var KnownStockLaunchers = []string{
+	StockLauncher,
+	"com.google.android.apps.tv.launcherx",
+	"com.google.android.leanbacklauncher",
+	"com.mitv.tvhome",
+}
+
 var (
 	PackageName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$`)
 	Component   = regexp.MustCompile(`^[A-Za-z_][\w.]*/[\w.$]+$`)

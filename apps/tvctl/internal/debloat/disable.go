@@ -13,10 +13,15 @@ type DisableOptions struct {
 	ForceHome        bool
 }
 
+const turnADBOffAdvice = "When you are done, turn USB debugging, Network/ADB debugging and " +
+	"Wireless debugging off on the TV, reboot it, then check with: scripts/tvctl closed.\n"
+
 const insecureADBWarning = "Warning: this TV reports ro.adb.secure=0, so network ADB on port " +
-	"5555 accepts any device on your network without the \"Allow\" prompt.\n" +
-	"When you are done, turn USB debugging and Network/ADB debugging off on the TV, reboot it, " +
-	"then check with: scripts/tvctl closed.\n"
+	"5555 accepts any device on your network without the \"Allow\" prompt.\n" + turnADBOffAdvice
+
+const unsetADBSecureWarning = "Warning: this TV does not set ro.adb.secure. On a debug " +
+	"(userdebug) build or Android 4.4 that is the same as ro.adb.secure=0: network ADB on port " +
+	"5555 accepts any device on your network without the \"Allow\" prompt.\n" + turnADBOffAdvice
 
 func Disable(
 	dev tv.Device,
@@ -34,7 +39,7 @@ func Disable(
 	}
 
 	targets := applyGuards(dev, names, opts, warn)
-	adbIsInsecure := readADBIsInsecure(dev)
+	adbWarning := adbSecureWarning(dev)
 
 	if err := SaveRecord(dev, recordPath, listPath, host, names, out); err != nil {
 		return err
@@ -45,10 +50,7 @@ func Disable(
 	}
 
 	fmt.Fprint(warn, tv.RebootDelayNotice)
-	if adbIsInsecure {
-		fmt.Fprint(warn, insecureADBWarning)
-	}
-
+	fmt.Fprint(warn, adbWarning)
 	return nil
 }
 
@@ -65,9 +67,20 @@ func applyGuards(dev tv.Device, names []string, opts DisableOptions, warn io.Wri
 	return targets
 }
 
-func readADBIsInsecure(dev tv.Device) bool {
+func adbSecureWarning(dev tv.Device) string {
 	answer, err := dev.Shell("getprop ro.adb.secure")
-	return err == nil && strings.TrimSpace(answer) == "0"
+	if err != nil {
+		return ""
+	}
+
+	switch strings.TrimSpace(answer) {
+	case "0":
+		return insecureADBWarning
+	case "":
+		return unsetADBSecureWarning
+	default:
+		return ""
+	}
 }
 
 func disableCommands(names []string) []string {

@@ -454,8 +454,13 @@ func TestCustomLauncherHomeRestoresTheStockLauncher(t *testing.T) {
 	f.installed = append(f.installed, custom)
 	f.home = tv.LauncherActivity
 	must(t, w.disable(f, DisableOptions{}))
-	if home := w.loadRecord().Home; home == nil || *home != tv.LauncherActivity {
-		t.Fatalf("home = %v", home)
+	record := w.loadRecord()
+	if record.Home == nil || *record.Home != tv.LauncherActivity {
+		t.Fatalf("home = %v", record.Home)
+	}
+
+	if record.Packages[stock] != stateEnabled {
+		t.Fatalf("the unlisted stock launcher is recorded as %q", record.Packages[stock])
 	}
 
 	r := w.restore(f)
@@ -825,15 +830,15 @@ func TestForceSetupWizard(t *testing.T) {
 
 func TestADBSecureWarning(t *testing.T) {
 	cases := []struct {
-		name  string
-		setup func(*fakeTV)
-		warns bool
+		name    string
+		setup   func(*fakeTV)
+		warning string
 	}{
-		{"not secure", func(f *fakeTV) { f.adbSecure = "0" }, true},
-		{"secure", func(f *fakeTV) { f.adbSecure = "1" }, false},
-		{"missing", func(f *fakeTV) { f.adbSecure = "" }, false},
+		{"not secure", func(f *fakeTV) { f.adbSecure = "0" }, insecureADBWarning},
+		{"secure", func(f *fakeTV) { f.adbSecure = "1" }, ""},
+		{"unset", func(f *fakeTV) { f.adbSecure = "" }, unsetADBSecureWarning},
 
-		{"read fails", func(f *fakeTV) { f.secureFails = true }, false},
+		{"read fails", func(f *fakeTV) { f.secureFails = true }, ""},
 	}
 
 	for _, c := range cases {
@@ -843,11 +848,15 @@ func TestADBSecureWarning(t *testing.T) {
 			c.setup(f)
 			r := w.disable(f, DisableOptions{})
 			must(t, r)
-			if got := strings.Contains(r.warn, "ro.adb.secure=0"); got != c.warns {
+			warns := c.warning != ""
+			if got := strings.Contains(r.warn, "ro.adb.secure"); got != warns {
 				t.Errorf("warned = %v\n%s", got, r.warn)
 			}
-			if c.warns && !strings.Contains(r.warn, "scripts/tvctl closed") {
-				t.Error("the note points at the README answer")
+			if warns && !strings.Contains(r.warn, c.warning) {
+				t.Errorf("wrong warning:\n%s", r.warn)
+			}
+			if warns && !strings.Contains(r.warn, "Wireless debugging") {
+				t.Error("the note names every debugging toggle")
 			}
 
 			want := []string{
