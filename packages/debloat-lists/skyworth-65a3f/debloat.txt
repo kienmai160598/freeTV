@@ -25,7 +25,7 @@
 # - 5555 opens without pairing (ro.adb.secure=0), so any host on the LAN gets a shell.
 # - adbd's stdout wrapper corrupts `exec-out screencap -p` here as well; screencap to a file on
 #   the TV and pull it.
-# - `scripts/tvctl --push` is for small files. the old base64 push needed roughly 20 minutes for a 17 MB
+# - `scripts/tvctl push` is for small files. the old base64 push needed roughly 20 minutes for a 17 MB
 #   APK. Faster: hold an adb shell running `toybox nc -l -p 9999 > /data/local/tmp/x.apk` and
 #   send from the computer with `nc <tv ip> 9999 < x.apk` (about 100 s; verify with md5sum, the
 #   adb_shell read timeout can fire at 120 s even when the file arrived intact).

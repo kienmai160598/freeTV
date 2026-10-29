@@ -6,9 +6,9 @@
 #
 # Tested 2026-10-20 on a real unit, applied in three batches with a screenshot after each: Home, the
 # remote's Input panel (com.tcl.suspension) and Live TV (com.tcl.tv/.TVActivity, all four HDMI ports in
-# TvInputManager) kept working. Quirks: Git Bash rewrites /data/... paths for scripts/tvctl --pull, so set
+# TvInputManager) kept working. Quirks: Git Bash rewrites /data/... paths for scripts/tvctl pull, so set
 # MSYS_NO_PATHCONV=1; screencap to /sdcard fails here, use /data/local/tmp. Launcher installed with
-# scripts/tvctl --push + pm install, later with build-and-install.sh (b64push md5 matched). Reboot-checked: all
+# scripts/tvctl push + pm install, later with build-and-install.sh (b64push md5 matched). Reboot-checked: all
 # packages stayed disabled, Home stayed on the new launcher, both key services re-bound.
 #
 # Stock launcher: com.google.android.apps.tv.launcherx (disabled by build-and-install.sh). setupwraith claims

@@ -4,7 +4,7 @@
 # com.ccos.cooui.movieplatform.ElderMainActivity). TV/inputs: com.skyworth.tv.
 #
 # Apply:   TV_HOST=<tv ip> scripts/tvctl disable packages/debloat-lists/skyworth-7s60-a5/debloat.txt
-# Undo:    TV_HOST=<tv ip> scripts/tvctl restore packages/debloat-lists/skyworth-7s60-a5/debloat.txt
+# Undo:    TV_HOST=<tv ip> scripts/tvctl restore packages/debloat-lists/skyworth-7s60-a5/debloat.txt com.tianci.movieplatform
 # Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
 #
 # Disabled before this debloat, so not listed (tvctl restore would turn them ON):

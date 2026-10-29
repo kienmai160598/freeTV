@@ -120,6 +120,20 @@ func TestShippedThemesAreValid(t *testing.T) {
 	}
 }
 
+func TestShippedModelConfigsAreValid(t *testing.T) {
+	configs, _ := filepath.Glob("../../../../packages/debloat-lists/*/config.json")
+	if len(configs) == 0 {
+		t.Fatal("no model configs found")
+	}
+
+	for _, config := range configs {
+		folder := filepath.Dir(config)
+		if err := Apply(&tvtest.Fake{}, folder, &bytes.Buffer{}); err != nil {
+			t.Errorf("%s: %v", folder, err)
+		}
+	}
+}
+
 func TestApplyAcceptsAConfigSavedWithABOM(t *testing.T) {
 	dev := &tvtest.Fake{}
 	folder := writeTheme(t, map[string]string{"config.json": "\xef\xbb\xbf{\"columns\": 6}"})
