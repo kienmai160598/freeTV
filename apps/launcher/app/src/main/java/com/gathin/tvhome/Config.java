@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.os.Environment;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -11,6 +12,8 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -78,6 +81,9 @@ final class Config {
     final List<String> appKeys;
     /** The Settings button opens the quick settings panel instead of the TV's Settings (settings_key_panel). */
     final boolean settingsKeyPanel;
+    final boolean keyFilter;
+    final boolean gamepadPassthrough;
+    final boolean restoreKeyServices;
     /** Whether themes may show a wallpaper (config.json, wallpaper). */
     final boolean wallpaperEnabled;
     /** Full-screen picture behind the launcher, or null for the plain colour. */
@@ -98,9 +104,13 @@ final class Config {
                    boolean showHomeSettingsShortcut, boolean showStats, boolean appLibrary, int backgroundColor, int skyIntensity,
                    int[] settingsKeycodes, boolean settingsKeyPanel, boolean wallpaperEnabled, File wallpaper, List<File> wallpapers,
                    int wallpaperRotationMinutes, int wallpaperDim, boolean overlayApplied,
-                   Festival festival, int[] inputKeycodes, List<String> appKeys) {
+                   Festival festival, int[] inputKeycodes, List<String> appKeys,
+                   KeyServices keyServices) {
         this.inputKeycodes = inputKeycodes;
         this.appKeys = Collections.unmodifiableList(appKeys);
+        this.keyFilter = keyServices.keyFilter;
+        this.gamepadPassthrough = keyServices.gamepadPassthrough;
+        this.restoreKeyServices = keyServices.restoreKeyServices;
         this.dockApps = Collections.unmodifiableList(dockApps);
         this.fillDock = fillDock;
         this.hiddenApps = Collections.unmodifiableList(hiddenApps);
@@ -173,11 +183,15 @@ final class Config {
         boolean settingsKeyPanel = res.getBoolean(R.bool.settings_key_panel);
         int[] inputKeycodes = res.getIntArray(R.array.input_key_keycodes);
         List<String> appKeys = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.app_keys)));
+        boolean keyFilter = res.getBoolean(R.bool.key_filter);
+        boolean gamepadPassthrough = res.getBoolean(R.bool.gamepad_passthrough);
+        boolean restoreKeyServices = res.getBoolean(R.bool.restore_key_services);
         boolean applied = false;
 
         File dir = dir(ctx);
         File file = dir != null ? new File(dir, FILE_NAME) : null;
-        JSONObject json = read(file);
+        boolean mounted = Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState());
+        JSONObject json = readOverlay(ctx, file, mounted);
         if (json != null) {
             applied = true;
             dock = stringList(json, Contract.Key.DOCK_APPS, dock);
@@ -209,11 +223,14 @@ final class Config {
             settingsKeyPanel = bool(json, Contract.Key.SETTINGS_KEY_PANEL, settingsKeyPanel);
             inputKeycodes = intArray(json, Contract.Key.INPUT_KEY_KEYCODES, inputKeycodes);
             appKeys = stringList(json, Contract.Key.APP_KEYS, appKeys);
+            keyFilter = bool(json, Contract.Key.KEY_FILTER, keyFilter);
+            gamepadPassthrough = bool(json, Contract.Key.GAMEPAD_PASSTHROUGH, gamepadPassthrough);
+            restoreKeyServices = bool(json, Contract.Key.RESTORE_KEY_SERVICES, restoreKeyServices);
         }
         // A theme push or reset invalidates choices made on the TV. On first use, remember the
         // current theme without clearing choices from an older launcher version.
         SharedPreferences choices = ctx.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE);
-        syncThemeChoices(choices, dir, file);
+        if (mounted) syncThemeChoices(choices, dir, file);
         int chosenColumns = choices.getInt(Contract.Key.COLUMNS, columns);
         if (chosenColumns >= 4 && chosenColumns <= 7) columns = chosenColumns;
         animations = choices.getBoolean(Contract.Key.ANIMATIONS, animations);
@@ -240,7 +257,20 @@ final class Config {
                 shamsi, greetingName, moduleCards, reducedMotion, dockTitle, dockRow, reorderButton, vpn, homeSettings, showStats, library, background,
                 Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, wallpaperEnabled, wallpaper,
                 wallpapers, rotationMinutes, wallpaperDim, applied,
-                festival, inputKeycodes, appKeys);
+                festival, inputKeycodes, appKeys,
+                new KeyServices(keyFilter, gamepadPassthrough, restoreKeyServices));
+    }
+
+    private static final class KeyServices {
+        final boolean keyFilter;
+        final boolean gamepadPassthrough;
+        final boolean restoreKeyServices;
+
+        KeyServices(boolean keyFilter, boolean gamepadPassthrough, boolean restoreKeyServices) {
+            this.keyFilter = keyFilter;
+            this.gamepadPassthrough = gamepadPassthrough;
+            this.restoreKeyServices = restoreKeyServices;
+        }
     }
 
     private static void syncThemeChoices(SharedPreferences choices, File dir, File config) {
@@ -275,6 +305,27 @@ final class Config {
             return n > 0 ? new String(bytes, 0, n, StandardCharsets.US_ASCII) : "absent";
         } catch (Exception ignored) {
             return "absent";
+        }
+    }
+
+    private static JSONObject readOverlay(Context ctx, File file, boolean mounted) {
+        File keptCopy = new File(ctx.getFilesDir(), FILE_NAME);
+        if (!mounted) return read(keptCopy);
+
+        JSONObject json = read(file);
+        if (json == null) {
+            keptCopy.delete();
+        } else {
+            keepCopy(json, keptCopy);
+        }
+        return json;
+    }
+
+    private static void keepCopy(JSONObject json, File keptCopy) {
+        try (FileOutputStream out = new FileOutputStream(keptCopy)) {
+            out.write(json.toString().getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            Log.w(TAG, "could not keep a copy of the overlay: " + e.getMessage());
         }
     }
 

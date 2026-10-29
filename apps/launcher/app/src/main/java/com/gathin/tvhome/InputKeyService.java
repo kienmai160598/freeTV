@@ -32,6 +32,8 @@ public class InputKeyService extends AccessibilityService {
     /** The app in front, from window changes; system overlays (the volume bar) leave it as it was. */
     private CharSequence frontPackage = "";
     private static final String[] OVERLAYS = {"com.android.systemui", "com.xiaomi.mitv.systemui"};
+    private boolean notedForRepair;
+    private GamepadPassthrough gamepads;
 
     @Override
     protected void onServiceConnected() {
@@ -41,6 +43,22 @@ public class InputKeyService extends AccessibilityService {
         inputKeycodes = config.inputKeycodes;
         appKeys = RemoteKeys.parseAppKeys(config.appKeys);
         runningAppsKeycodes = getResources().getIntArray(R.array.running_apps_keycodes);
+        notedForRepair = config.restoreKeyServices;
+        if (notedForRepair) ServiceRepair.noteRunning(this, getClass());
+        RemoteKeys.stopFilteringUnless(this, config.keyFilter);
+        if (gamepads == null) gamepads = GamepadPassthrough.startIfWanted(this, config);
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        if (notedForRepair) ServiceRepair.forget(this, getClass());
+        return super.onUnbind(intent);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (gamepads != null) gamepads.stop();
+        super.onDestroy();
     }
 
     private boolean isRunningAppsKey(int keyCode) {

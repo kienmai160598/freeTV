@@ -103,7 +103,6 @@ public final class LauncherSettingsActivity extends Activity {
             if (!animations) advancedEffects = false;
             choices.edit().putBoolean("animations", animations)
                     .putBoolean("advanced_effects", advancedEffects).apply();
-            setResult(RESULT_OK);
             refresh();
         });
         advancedChoice = findViewById(R.id.advancedChoice);
@@ -797,7 +796,6 @@ public final class LauncherSettingsActivity extends Activity {
     private void setAdvanced(boolean enabled) {
         advancedEffects = enabled;
         choices.edit().putBoolean("advanced_effects", enabled).apply();
-        setResult(RESULT_OK);
         refresh();
     }
 

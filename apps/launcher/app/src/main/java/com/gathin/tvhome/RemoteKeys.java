@@ -1,5 +1,7 @@
 package com.gathin.tvhome;
 
+import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -51,6 +53,16 @@ final class RemoteKeys {
             if (code > 0) keys.put(code, parts[1].trim());
         }
         return keys;
+    }
+
+    static void stopFilteringUnless(AccessibilityService service, boolean keyFilter) {
+        if (keyFilter) return;
+
+        AccessibilityServiceInfo info = service.getServiceInfo();
+        if (info == null) return;
+
+        info.flags &= ~AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
+        service.setServiceInfo(info);
     }
 
     /** Opens an app from a remote button: its TV entry if it has one, else its phone entry. */

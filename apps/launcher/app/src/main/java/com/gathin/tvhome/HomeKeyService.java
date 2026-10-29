@@ -1,14 +1,18 @@
 package com.gathin.tvhome;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.os.UserManager;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -49,17 +53,76 @@ public class HomeKeyService extends AccessibilityService {
         rememberStandingIn();
         openHome();
     };
+    private BroadcastReceiver unlockWaiter;
+    private boolean configLoaded;
+    private boolean notedForRepair;
+    private GamepadPassthrough gamepads;
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         settingsScancodes = getResources().getIntArray(R.array.settings_key_scancodes);
-        // Keycodes and the panel choice can also come from a theme; theme.sh restarts this service.
+        if (userUnlocked()) {
+            loadConfig();
+            return;
+        }
+
+        waitForUnlock();
+    }
+
+    private boolean userUnlocked() {
+        return getSystemService(UserManager.class).isUserUnlocked();
+    }
+
+    private void waitForUnlock() {
+        unlockWaiter = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                stopWaitingForUnlock();
+                loadConfig();
+            }
+        };
+        registerReceiver(unlockWaiter, new IntentFilter(Intent.ACTION_USER_UNLOCKED));
+        if (userUnlocked()) {
+            stopWaitingForUnlock();
+            loadConfig();
+        }
+    }
+
+    private void stopWaitingForUnlock() {
+        if (unlockWaiter == null) return;
+
+        unregisterReceiver(unlockWaiter);
+        unlockWaiter = null;
+    }
+
+    private void loadConfig() {
+        if (configLoaded) return;
+
         Config config = Config.load(this);
         settingsKeycodes = config.settingsKeycodes;
         settingsPanel = config.settingsKeyPanel;
         appKeys = RemoteKeys.parseAppKeys(config.appKeys);
+        notedForRepair = config.restoreKeyServices;
+        if (notedForRepair) ServiceRepair.noteRunning(this, getClass());
+        RemoteKeys.stopFilteringUnless(this, config.keyFilter);
+        if (gamepads == null) gamepads = GamepadPassthrough.startIfWanted(this, config);
+        configLoaded = true;
         if (SystemClock.elapsedRealtime() < JUST_BOOTED_MS) openHome();
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        if (notedForRepair) ServiceRepair.forget(this, getClass());
+        return super.onUnbind(intent);
+    }
+
+    @Override
+    public void onDestroy() {
+        stopWaitingForUnlock();
+        settle.removeCallbacks(replaceOtherHome);
+        if (gamepads != null) gamepads.stop();
+        super.onDestroy();
     }
 
     private boolean isSettingsKey(KeyEvent event) {
@@ -71,6 +134,8 @@ public class HomeKeyService extends AccessibilityService {
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
+        if (!configLoaded) return false;
+
         // The stock launcher handled the remote's Settings button; with it disabled the button does nothing.
         if (isSettingsKey(event)) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
@@ -155,6 +220,7 @@ public class HomeKeyService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (!configLoaded) return;
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.getPackageName() == null) return;
         if (isOtherHomeWindow(event)) {
             settle.removeCallbacks(replaceOtherHome);

@@ -73,6 +73,9 @@ const (
 	KeySettingsKeyPanel         = "settings_key_panel"
 	KeyInputKeyKeycodes         = "input_key_keycodes"
 	KeyAppKeys                  = "app_keys"
+	KeyKeyFilter                = "key_filter"
+	KeyGamepadPassthrough       = "gamepad_passthrough"
+	KeyRestoreKeyServices       = "restore_key_services"
 	KeyWallpaper                = "wallpaper"
 	KeyWallpaperRotationMinutes = "wallpaper_rotation_minutes"
 	KeyWallpaperDim             = "wallpaper_dim"
@@ -112,6 +115,9 @@ var ConfigKeys = map[string]ConfigKey{
 	KeySettingsKeyPanel:         {Name: KeySettingsKeyPanel, Type: TypeBool},
 	KeyInputKeyKeycodes:         {Name: KeyInputKeyKeycodes, Type: TypeKeycodes},
 	KeyAppKeys:                  {Name: KeyAppKeys, Type: TypeStrings},
+	KeyKeyFilter:                {Name: KeyKeyFilter, Type: TypeBool},
+	KeyGamepadPassthrough:       {Name: KeyGamepadPassthrough, Type: TypeBool},
+	KeyRestoreKeyServices:       {Name: KeyRestoreKeyServices, Type: TypeBool},
 	KeyWallpaper:                {Name: KeyWallpaper, Type: TypeBool},
 	KeyWallpaperRotationMinutes: {Name: KeyWallpaperRotationMinutes, Type: TypeInt, Min: 0, Max: 1440},
 	KeyWallpaperDim:             {Name: KeyWallpaperDim, Type: TypeInt, Min: 0, Max: 90},
