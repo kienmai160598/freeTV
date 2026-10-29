@@ -1,0 +1,186 @@
+# TCL Smart TV Pro (device BeyondTV4, product G03_4K_GB, Realtek rtd288o / R51MT05, software
+# V8-R51MT05-LF1V620), Google TV on Android 11 (SDK 30), build RP1A.200622.001 AR09, security patch
+# 2024-03-05, 32-bit userspace (armeabi-v7a), client TCL-ME-RTD51M-S1 (Middle East firmware).
+# Fingerprint: TCL/G03_4K_GB/BeyondTV4:11/RP1A.200622.001/AR09:user/release-keys
+# Same R51MT05 platform as packages/debloat-lists/tcl-43c645 (LF1V652); that list was the starting point.
+#
+# Apply:   TV_HOST=<tv ip> scripts/tvctl disable packages/debloat-lists/tcl-g03-google-tv/debloat.txt
+# Undo:    TV_HOST=<tv ip> scripts/tvctl restore packages/debloat-lists/tcl-g03-google-tv/debloat.txt com.google.android.apps.tv.launcherx
+# Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
+#
+# Tested 2026-10-20 on a real unit, applied in the seven batches below with a screenshot after each, then a
+# reboot: Wi-Fi stayed up, Settings, the remote's Input key (TCL's source panel), Live TV and HDMI from the
+# launcher's Inputs menu, app launches and playback with AdGuard Private DNS all worked, and every package
+# stayed disabled after the reboot. Lived with for one day so far. launcher/ installed with the default
+# build-and-install.sh (base64 push md5 matched here, unlike the 43C645).
+#
+# Stock launcher: com.google.android.apps.tv.launcherx. Live TV / HDMI: com.tcl.tv (TVActivity) with inputs from
+# com.tcl.tvinput (tuner, HDMI 1-3, AV). The launcher's default live_tv_package is MediaTek's, so the Inputs menu
+# has no Live TV row until a theme sets "live_tv_package": "com.tcl.tv". config.json in this folder sets it,
+# the gear button and the app buttons described under "Second unit" below; push it with:
+# TV_HOST=<tv ip> scripts/tvctl theme packages/debloat-lists/tcl-g03-google-tv
+# Already disabled at the factory: au.com.stan.and (Stan), tv.wuaki.apptv (Rakuten TV); the second unit below
+# also had com.tcl.smartalexa off at the factory.
+#
+# Before batch 6 (setupwraith): on this unit the Wi-Fi saved during first setup belonged to setupwraith
+# (`dumpsys wifi | grep -o 'cname=[^ ]*'`), so disabling it would have deleted the network. Forgetting the
+# network and joining it again in Settings moved it to com.android.tv.settings; then disabling setupwraith kept
+# Wi-Fi. scripts/tvctl disable skips setupwraith while it owns the network.
+#
+# Remote (Bluetooth "TCL_RC902V_MM", Generic.kl):
+# - Input keeps opening TCL's source panel (com.tcl.suspension) without launcherx; no InputKeyService needed.
+# - Gear is scancode 233 (KEY_FORWARDMAIL, HID 0x0c0055), mapped to TCL_SET, keycode 4077. Only launcherx
+#   answered it, so it does nothing once launcherx is off. HOME_KEY_SERVICE=1 at install plus
+#   "settings_key_keycodes": [4077] in the theme brings it back (verified with the real remote); with
+#   "settings_key_panel": true it opens the launcher's quick settings panel over any app.
+# - `input keyevent SETTINGS` opens Android's version easter egg here; inject 176 instead.
+#
+# Second unit, 2026-10-21, same AR09 build, applied in the batches below with a screenshot after each and then
+# rebooted with launcherx off: the list minus Netflix and Prime Video, minus the factory-off smartalexa, plus
+# launcherx (38 packages) stayed disabled, and HDMI, Netflix playback, the remote and Wi-Fi all worked.
+# AdGuard's Private DNS (private_dns_mode hostname) changed nothing for playback. Two things differ:
+# - Its Bluetooth remote is "TCL_RC902V_M1" (also /dev/input/event3, Generic.kl), not the "TCL_RC902V_MM" above.
+#   Netflix (HID 0x0c0051, TCL_NETFLIX), YouTube (0x0c0057, TCL_YOUTUBE) and Prime Video (0x0c005f, keycode
+#   4099) are broadcasts only launcherx answers, so all three do nothing once it is off. `getevent -lt` prints
+#   the HID usage and the Linux key under each button, which is how the two remotes are told apart.
+# - HOME_KEY_SERVICE=1 with the app_keys in config.json brings all three back (verified with the real remote;
+#   a button whose app you disabled still opens nothing). Gear is keycode 4077 on this remote too, so
+#   settings_key_keycodes and settings_key_panel above apply unchanged.
+# setupwraith owned the Wi-Fi on this unit as well, and this order worked: forget and re-join the network,
+# disable setupwraith while launcherx still owns Home, run apps/launcher/build-and-install.sh, switch the
+# screensaver, then disable dreamx. Home landed on the new launcher straight away (mFocusedApp checked), with
+# no RecoveryActivity in between.
+#
+# US firmware unit, 2026-10-25: TCL Smart TV Pro G03_4K_US (BeyondTV4, Realtek rtd288o / R51MT05,
+# software V8-R51MT05-LF1V813), Google TV 11, build RP1A.200622.001 GTV93, security patch 2023-10-05, client
+# TCL-NA-RTD51M-S1. The packages of groups 1-3 still enabled on this unit were disabled one per shell call, then
+# rebooted: Wi-Fi and internet stayed up, Settings opened and every package stayed disabled. Lived with for a few
+# days. This unit kept launcherx and setupwraith (setupwraith owned the Wi-Fi here too), so group 6 and the
+# launcherx line were not applied. Found on this unit:
+# - com.tcl.xian.StartandroidService is also how TCL's updater gets the device number (dnum). With it disabled,
+#   Settings > About > Software Update > Network Update fails with "Local network or server abnormal, please check
+#   the network and try again" while the network is fine (logcat: "dnum is null!"). If you turned it off, to check for an update enable it,
+#   reboot once, run the check, then disable it again (docs/troubleshooting.md).
+# - com.google.android.apps.tv.dreamx is more than the promo screensaver: it also hosts Google TV's Google Home panel
+#   (SmartHomeMainActivity: lights and other devices in the quick settings). Disabling it removes that panel. It also
+#   loads the panel's account through com.google.android.apps.tv.launcherx, so with launcherx off the panel opens and
+#   closes at once: if the household uses Google Home lights, keep launcherx enabled as well and hand Home to the new
+#   launcher with stock_home_redirect (docs/troubleshooting.md, #1653).
+# - Apps only mode (Settings > Accounts & Sign In > account) also hides the Google Home panel on this firmware.
+#
+# TCL 50C641, EU firmware unit, 2026-10-28: Smart TV Pro G03_4K_GB (BeyondTV4, Realtek rtd288o / R51MT05,
+# software V8-R51MT05-LF1V652, client TCL-EU-RTD51M-S1), Google TV 11, build RP1A.200622.001 AR11, security patch
+# 2024-12-05. Groups 1-3, part of 4 (YouTube Music, Google TV, USB media player, gallery, game bar, TCL Live) and
+# part of 5 (katniss, tv.assistant, com.tcl.assistant, micmanager, miracast) were disabled one per shell call in
+# five batches with a screenshot after each, then group 6 after the Wi-Fi re-join (setupwraith owned it here too),
+# then launcherx via build-and-install.sh, then dreamx; rebooted twice. Every package stayed disabled, Home came
+# up on the new launcher with no RecoveryActivity, Wi-Fi stayed up, the tuner, AV and HDMI 1-4 still enumerated
+# in `dumpsys tv_input` and Live TV opened from the launcher's Inputs menu. Tested the same day, not yet lived with
+# for days. Differences on this unit:
+# - com.tcl.partnercustomizer was left enabled: besides its promo receivers it holds TKey activities (TCL's remote
+#   shortcut key), and nothing on this unit showed whether the remote needs them.
+# - android.autoinstalls.config.google.gtvpai was skipped by scripts/tvctl disable (no permission block in dumpsys).
+# - com.tcl.gallery and com.tcl.ui_mediaCenter do not request TV_INPUT_HARDWARE on AR11 (only com.tcl.tv does), and
+#   HDMI kept working with both off.
+# - dreamx was re-enabled afterwards by the owner: Google Photos ambient mode (Settings > System > Ambient mode)
+#   loaded the account and the album with launcherx still disabled, unlike the Google Home panel above.
+# - The remote is infrared, read as /dev/input/event0 with Generic.kl (no Bluetooth remote in `dumpsys input`).
+#   `getevent -lt` scancodes, decimal: Netflix 758 (0x2f6, in no key layout, so Android sees KEY_UNKNOWN),
+#   YouTube 569 (KEY_YOUTUBE), Prime Video 752 (KEY_PRIMEVIDEO), BrowseHere/Web 651, TCL Home 204 (KEY_DASHBOARD),
+#   TCL Channel 456 (KEY_QUICK_MENU, opens a TCL "coming soon" page with com.tcl.channelplus off). With launcherx off
+#   none of the app buttons did anything; HOME_KEY_SERVICE=1 with "scan:758:com.netflix.ninja",
+#   "scan:569:com.google.android.youtube.tv", "scan:752:com.amazon.amazonvideo.livingroom",
+#   "scan:651:com.tcl.browser" and "scan:456:ignore" in app_keys brought them back (verified with the real remote).
+#   These are not in this folder's config.json, whose keycode entries are for the Bluetooth remotes above.
+# - With HomeKeyService bound, one tap of volume moved two steps (#1100); consume_volume_keys true made it one step,
+#   and a held button kept ramping, a little slower than without the helper.
+#
+# Latin America firmware unit, 2026-10-28: same G03_4K_GB / AR09 / V8-R51MT05-LF1V620 build, client
+# TCL-LA-RTD51M-S1, security patch 2024-03-05. Applied groups 1-3, group 4 minus Netflix, Prime Video and
+# com.google.android.videos, group 5 minus voice (katniss, tv.assistant, tcl.assistant, smartalexa, micmanager) and
+# Chromecast, then groups 6 and 7 and launcherx, in batches with a screenshot after each and three reboots: every
+# package stayed disabled, Wi-Fi stayed up, the TV powered on to the new Home (FallbackHome, then the launcher; no
+# Live TV, no RecoveryActivity), and HDMI 1 opened from the launcher's Inputs menu. One day so far.
+# - scripts/tvctl disable skipped android.autoinstalls.config.google.gtvpai in group 2: its dumpsys has no permission
+#   block. After a reboot with all five com.tcl.tvinput inputs still listed it was disabled with TVINPUT_ALLOW=1
+#   (the package is a stub with one DummyReceiver).
+# - setupwraith owned an older saved network, not the one in use. Forgetting that one let tvctl disable through.
+# - Remote: Bluetooth "TCL_RC902V_M2", with the same HID usages as the M1 above: Netflix 0x0c0051, YouTube
+#   0x0c0057, Prime Video 0x0c005f, gear 0x0c0055 (keycode 4077), Home 0x0c0223. Input is 0x0c0049 (KEY_GAMES,
+#   keycode 178) and opens com.tcl.suspension's source panel with no helper. HOME_KEY_SERVICE=1 with the app_keys
+#   and settings_key_keycodes of config.json brought back the gear and the three app buttons (real remote).
+# - With HomeKeyService bound, a held Volume Up stepped once per press instead of ramping, the trade described in
+#   docs/devices/tcl-55p71b-g09-key-repeat.md. "consume_volume_keys": true (config.xml or a theme) brought the
+#   ramp back with one step per tap, checked on the real remote, and the helper rebound by itself after a reboot.
+#   It is not in this folder's config.json because the other two units were not measured.
+# - Voice stayed on with launcherx disabled. The first mic press afterwards answered that the Assistant had trouble
+#   processing; later presses, and presses after a reboot, worked.
+#
+# DO NOT DISABLE: com.tcl.tv, com.tcl.tvinput (Live TV, tuner, HDMI/AV), com.tcl.suspension (Quick panel and the
+# Input key's source panel), com.tcl.settings, com.tcl.system.server, com.tcl.providers.config, com.tcl.initsetup,
+# com.tcl.factory.view, com.tcl.tcl_bt_rcu_service, com.tcl.autopair (remote), com.tcl.inputmethod.international
+# (keyboard), com.google.android.tv.remote.service. Left alone as unclear or small gain: com.tcl.keyhelp (remote
+# virtual keys on the G05), com.tcl.useragreement, com.tcl.hearaid, com.tcl.t_solo,
+# com.google.android.apps.nbu.smartconnect.tv (Google data saver / VPN client).
+
+# ---- 1. TCL and Google telemetry ----
+com.tcl.bi                                  # TCL BI analytics
+com.tcl.logkit                              # log capture and upload
+# com.tcl.xian.StartandroidService          # background reporting service; off on the tested units, but TCL's updater needs it (see header), so it stays on
+com.google.android.feedback                 # crash / feedback reporting
+
+# ---- 2. TCL and Google content, ads and recommendation rows ----
+# Removes the "TCL Channel" row from the stock home.
+com.tcl.dashboard                           # TCL dashboard / promo backend
+com.tcl.partnercustomizer                   # partner customisation channel, promo rows
+com.tcl.messagebox                          # TCL message / promo box
+com.tcl.overseasappshow                     # "recommended apps" showcase
+com.tcl.esticker                            # sticker / emoji overlay
+com.tcl.tv.tclhome_passive                  # pushes TCL content to the home screen at boot
+com.tcl.waterfall.overseas                  # TCL web-video recommendation portal
+android.autoinstalls.config.google.gtvpai   # silently installs partner apps
+com.google.android.partnersetup             # partner-app attribution
+com.google.android.onetimeinitializer       # one-time setup leftovers
+
+# ---- 3. Background services and preloaded extras ----
+com.tcl.guard                               # TCL online support
+com.tcl.usercenter                          # TCL account sign-in nags
+com.tcl.ocean.instructions                  # e-manual
+com.tcl.android.webview                     # TCL WebView; com.google.android.webview stays the provider
+org.chromium.webview_shell                  # WebView test shell
+com.google.android.syncadapters.calendar    # calendar sync, no calendar on a TV
+com.google.android.play.games               # Play Games
+com.tcl.gallery                             # TCL photo gallery
+
+# ---- 4. Off by choice: streaming apps and TCL extras (comment out what you use) ----
+com.netflix.ninja                           # Netflix (the remote's Netflix button then opens nothing)
+com.amazon.amazonvideo.livingroom           # Prime Video
+com.google.android.youtube.tvmusic          # YouTube Music
+com.google.android.videos                   # Google TV / Play Movies
+com.tcl.ui_mediaCenter                      # USB media player; re-enable to play media from USB drives
+com.tcl.gamebar                             # game mode / VRR overlay for consoles
+com.tcl.channelplus                         # TCL Live FAST channels
+com.tcl.browser                             # TCL web browser; removes the "BrowseHere" row from the stock home
+
+# ---- 5. Off by choice: voice, casting, mirroring (comment out what you use) ----
+com.google.android.katniss                  # Google search / voice (the remote's mic button)
+com.google.android.tv.assistant             # Google Assistant for TV
+com.tcl.assistant                           # TCL voice assistant
+com.tcl.smartalexa                          # Alexa bridge
+com.tcl.micmanager                          # remote microphone manager
+com.google.android.apps.mediashell          # Chromecast receiver
+com.tcl.miracast                            # Miracast screen mirroring
+com.tcl.MultiScreenInteraction_TV           # T-Cast / MagiConnect phone link
+
+# ---- 6. Google TV first-run wizard: claims HOME once launcherx is off (read the Wi-Fi note above) ----
+# Re-enable it (scripts/tvctl restore does) before a factory reset.
+com.google.android.tungsten.setupwraith
+
+# ---- 7. Google ambient screensaver (promos); also hosts the Google Home panel (see header) ----
+# Switch the screensaver first, e.g. to the launcher's clock:
+#   settings put secure screensaver_components com.gathin.tvhome/.ClockDream
+# Back to Google's: settings put secure screensaver_components com.google.android.apps.tv.dreamx/.service.Backdrop
+com.google.android.apps.tv.dreamx
+
+# Kept: com.tcl.versionUpdateApp (TCL firmware updater) by choice on the test unit. Uncomment to freeze updates.
+# com.tcl.versionUpdateApp

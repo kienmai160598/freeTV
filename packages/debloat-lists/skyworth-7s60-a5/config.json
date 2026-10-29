@@ -1,0 +1,8 @@
+{
+  "dock_apps": [
+    "com.xiaodianshi.tv.yst",
+    "com.cibn.tv"
+  ],
+  "source_panel_service": "com.coocaa.os.ccosservice/com.coocaa.os.centerintegration.service.CenterService",
+  "source_panel_action": "com.coocaa.intent.action.CONTROL_CENTER"
+}

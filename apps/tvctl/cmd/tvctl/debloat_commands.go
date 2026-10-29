@@ -53,7 +53,9 @@ func (a *app) restore(args []string) error {
 		return nil
 	}
 
-	return a.sendBatch(commands)
+	return a.withTV(func(session *tv.Session) error {
+		return debloat.Restore(session, commands, a.stdout, a.stderr)
+	})
 }
 
 func (a *app) recordPath(list string) string {

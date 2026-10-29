@@ -138,6 +138,10 @@ func TestSuccessHandsHomeOver(t *testing.T) {
 	if o.handover != "" {
 		t.Error("no rescue file on success")
 	}
+
+	if !strings.Contains(o.warn, tv.RebootDelayNotice) {
+		t.Errorf("the stock launcher was disabled; warnings: %s", o.warn)
+	}
 }
 
 func TestFailedInstallLeavesStockHomeAlone(t *testing.T) {
@@ -158,7 +162,7 @@ func TestLauncherThatDoesNotStartLeavesStockHomeEnabled(t *testing.T) {
 	}
 
 	if strings.Contains(o.out, "Installed.") || index(o.commands, "pm disable-user") >= 0 ||
-		f.stockDisabled {
+		f.stockDisabled || strings.Contains(o.warn, tv.RebootDelayNotice) {
 		t.Error("the stock launcher was touched")
 	}
 }
@@ -288,5 +292,33 @@ func TestServicesAreEnabledOnlyWhenAsked(t *testing.T) {
 
 	if index(o.commands, ".HomeKeyService") >= 0 {
 		t.Error("HomeKeyService was not asked for")
+	}
+}
+
+func TestTheLauncherStartsAsHome(t *testing.T) {
+	o := handover(t, &fakeTV{}, Options{})
+	start := o.commands[index(o.commands, "am start -W")]
+	if !strings.Contains(start, tv.HomeIntent) || !strings.Contains(start, tv.LauncherActivity) {
+		t.Errorf("a start by name alone opens a second, non-Home task: %q", start)
+	}
+}
+
+func TestAKeyServiceSurvivesTCLAutoStartAndAReinstall(t *testing.T) {
+	o := handover(t, &fakeTV{}, Options{HomeKeyService: true})
+	enable := o.commands[index(o.commands, ".HomeKeyService")]
+	for _, want := range []string{
+		"AUTO_START allow",
+		"APP_AUTO_START allow",
+		"appops write-settings",
+		"*HomeKeyService*) settings put secure enabled_accessibility_services ''",
+	} {
+		if !strings.Contains(enable, want) {
+			t.Errorf("missing %q in %s", want, enable)
+		}
+	}
+
+	grant := strings.Index(enable, "appops write-settings")
+	if grant > strings.Index(enable, "settings get secure enabled_accessibility_services") {
+		t.Error("the app-op is saved before the service is bound")
 	}
 }

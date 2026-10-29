@@ -8,11 +8,12 @@ import (
 	"github.com/kienmai160598/freeTV/apps/tvctl/internal/contract"
 )
 
-const homeIntent = "-a android.intent.action.MAIN -c android.intent.category.HOME"
+const HomeIntent = "-a android.intent.action.MAIN -c android.intent.category.HOME"
 
 const (
-	HomeQuery       = "cmd package resolve-activity --brief " + homeIntent
-	HomeClaimsQuery = "cmd package query-activities --brief " + homeIntent
+	HomeQuery       = "cmd package resolve-activity --brief " + HomeIntent
+	HomeClaimsQuery = "cmd package query-activities --brief " + HomeIntent
+	StartHome       = "am start " + HomeIntent
 )
 
 const (
@@ -22,10 +23,17 @@ const (
 	SetupWizard      = "com.google.android.tungsten.setupwraith"
 )
 
+var KnownStockLaunchers = []string{
+	StockLauncher,
+	"com.google.android.apps.tv.launcherx",
+	"com.google.android.leanbacklauncher",
+	"com.mitv.tvhome",
+}
+
 var (
 	PackageName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$`)
 	Component   = regexp.MustCompile(`^[A-Za-z_][\w.]*/[\w.$]+$`)
-	claimLine   = regexp.MustCompile(`^\s*([A-Za-z0-9_.]+)/`)
+	claimLine   = regexp.MustCompile(`^\s*([A-Za-z0-9_.]+)/(\S+)`)
 )
 
 func LastLine(output string) string {
@@ -72,7 +80,7 @@ func HomeClaimants(dev Device) ([]string, error) {
 	var claimants []string
 	for _, line := range outputLines(output) {
 		match := claimLine.FindStringSubmatch(line)
-		if match == nil || seen[match[1]] {
+		if match == nil || seen[match[1]] || isFallbackHome(match[2]) {
 			continue
 		}
 		seen[match[1]] = true
@@ -81,6 +89,10 @@ func HomeClaimants(dev Device) ([]string, error) {
 
 	sort.Strings(claimants)
 	return claimants, nil
+}
+
+func isFallbackHome(activity string) bool {
+	return strings.HasSuffix(activity, "FallbackHome")
 }
 
 func Packages(dev Device, flags string) (map[string]bool, error) {

@@ -1,6 +1,9 @@
 package com.gathin.tvhome;
 
+import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.view.KeyEvent;
@@ -13,11 +16,36 @@ import java.util.function.ToIntFunction;
 /**
  * Remote buttons that only the stock launcher answered, for InputKeyService and HomeKeyService: app_keys
  * (config.xml or a theme) maps a keycode to the app it opens, as "190:com.google.android.youtube.tv" or
- * "KEYCODE_BUTTON_3:com.google.android.youtube.tv". One map for both services; whichever filters the key first
- * consumes it.
+ * "KEYCODE_BUTTON_3:com.google.android.youtube.tv", or "190:package/.Activity" for one activity.
+ * One map for both services; Android hands a key to every service that filters, so each press
+ * launches once.
  */
 final class RemoteKeys {
+    private static final Presses presses = new Presses();
+
     private RemoteKeys() { }
+
+    static boolean handle(Context ctx, KeyEvent event, String target) {
+        if (target == null) return false;
+
+        boolean released = event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled();
+        String button = event.getDeviceId() + ":" + event.getKeyCode() + ":" + event.getScanCode();
+        if (released && presses.firstCopy(button, event.getEventTime())) launch(ctx, target);
+        return true;
+    }
+
+    static final class Presses {
+        private String lastButton = "";
+        private long lastReleasedAt = -1;
+
+        boolean firstCopy(String button, long releasedAt) {
+            if (button.equals(lastButton) && releasedAt == lastReleasedAt) return false;
+
+            lastButton = button;
+            lastReleasedAt = releasedAt;
+            return true;
+        }
+    }
 
     /** keycode -> package, with key names resolved by Android. */
     static Map<Integer, String> parseAppKeys(String[] entries) {
@@ -53,14 +81,43 @@ final class RemoteKeys {
         return keys;
     }
 
+    static void stopFilteringUnless(AccessibilityService service, boolean keyFilter) {
+        if (keyFilter) return;
+
+        AccessibilityServiceInfo info = service.getServiceInfo();
+        if (info == null) return;
+
+        info.flags &= ~AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
+        service.setServiceInfo(info);
+    }
+
+    static boolean isActivityTarget(String target) {
+        return target.indexOf('/') > 0;
+    }
+
     /** Opens an app from a remote button: its TV entry if it has one, else its phone entry. */
     static void launch(Context ctx, String pkg) {
+        if (isActivityTarget(pkg)) {
+            launchActivity(ctx, ComponentName.unflattenFromString(pkg));
+            return;
+        }
+
         Intent open = ctx.getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
         if (open == null) open = ctx.getPackageManager().getLaunchIntentForPackage(pkg);
         if (open == null) return;
         try {
             ctx.startActivity(open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException ignored) {
+        }
+    }
+
+    private static void launchActivity(Context ctx, ComponentName activity) {
+        if (activity == null) return;
+
+        Intent open = new Intent().setComponent(activity).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            ctx.startActivity(open);
+        } catch (ActivityNotFoundException | SecurityException ignored) {
         }
     }
 }

@@ -11,6 +11,9 @@ func Quote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
+const RebootDelayNotice = "Android saves package state about 10 seconds after a change: " +
+	"wait 15 seconds before you reboot the TV, or it can boot with the old state.\n"
+
 func Batch(dev Device, commands []string, out io.Writer) error {
 	for _, command := range commands {
 		answer, err := dev.Shell(command)

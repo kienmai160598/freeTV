@@ -30,6 +30,7 @@ type fakeTV struct {
 	homeFails   bool
 	claims      []string
 	claimsFail  bool
+	activities  string
 	wifi        string
 	wifiFails   bool
 	adbSecure   string
@@ -78,8 +79,11 @@ func (f *fakeTV) device() *tvtest.Fake {
 				return "", errors.New("query failed")
 			}
 			var b strings.Builder
-			for _, name := range f.claims {
-				b.WriteString("  " + name + "/.MainActivity\n")
+			for _, claim := range f.claims {
+				if !strings.Contains(claim, "/") {
+					claim += "/.MainActivity"
+				}
+				b.WriteString("  " + claim + "\n")
 			}
 			return b.String(), nil
 		case strings.HasPrefix(command, "cmd package resolve-activity"):
@@ -93,6 +97,8 @@ func (f *fakeTV) device() *tvtest.Fake {
 				value = "null"
 			}
 			return value + "\n", nil
+		case command == "dumpsys activity":
+			return f.activities, nil
 		case command == "dumpsys wifi":
 			if f.wifiFails {
 				return "partial output", errors.New("dumpsys stopped")
@@ -153,7 +159,7 @@ func (w *world) restore(f *fakeTV) result {
 	var out, warn bytes.Buffer
 	commands, err := RestoreCommands(w.record, w.list, "", &warn)
 	if err == nil {
-		err = tv.Batch(dev, commands, &out)
+		err = Restore(dev, commands, &out, &warn)
 	}
 
 	return result{err, out.String(), warn.String(), dev.Commands}
@@ -448,8 +454,13 @@ func TestCustomLauncherHomeRestoresTheStockLauncher(t *testing.T) {
 	f.installed = append(f.installed, custom)
 	f.home = tv.LauncherActivity
 	must(t, w.disable(f, DisableOptions{}))
-	if home := w.loadRecord().Home; home == nil || *home != tv.LauncherActivity {
-		t.Fatalf("home = %v", home)
+	record := w.loadRecord()
+	if record.Home == nil || *record.Home != tv.LauncherActivity {
+		t.Fatalf("home = %v", record.Home)
+	}
+
+	if record.Packages[stock] != stateEnabled {
+		t.Fatalf("the unlisted stock launcher is recorded as %q", record.Packages[stock])
 	}
 
 	r := w.restore(f)
@@ -819,15 +830,15 @@ func TestForceSetupWizard(t *testing.T) {
 
 func TestADBSecureWarning(t *testing.T) {
 	cases := []struct {
-		name  string
-		setup func(*fakeTV)
-		warns bool
+		name    string
+		setup   func(*fakeTV)
+		warning string
 	}{
-		{"not secure", func(f *fakeTV) { f.adbSecure = "0" }, true},
-		{"secure", func(f *fakeTV) { f.adbSecure = "1" }, false},
-		{"missing", func(f *fakeTV) { f.adbSecure = "" }, false},
+		{"not secure", func(f *fakeTV) { f.adbSecure = "0" }, insecureADBWarning},
+		{"secure", func(f *fakeTV) { f.adbSecure = "1" }, ""},
+		{"unset", func(f *fakeTV) { f.adbSecure = "" }, unsetADBSecureWarning},
 
-		{"read fails", func(f *fakeTV) { f.secureFails = true }, false},
+		{"read fails", func(f *fakeTV) { f.secureFails = true }, ""},
 	}
 
 	for _, c := range cases {
@@ -837,11 +848,15 @@ func TestADBSecureWarning(t *testing.T) {
 			c.setup(f)
 			r := w.disable(f, DisableOptions{})
 			must(t, r)
-			if got := strings.Contains(r.warn, "ro.adb.secure=0"); got != c.warns {
+			warns := c.warning != ""
+			if got := strings.Contains(r.warn, "ro.adb.secure"); got != warns {
 				t.Errorf("warned = %v\n%s", got, r.warn)
 			}
-			if c.warns && !strings.Contains(r.warn, "scripts/tvctl closed") {
-				t.Error("the note points at the README answer")
+			if warns && !strings.Contains(r.warn, c.warning) {
+				t.Errorf("wrong warning:\n%s", r.warn)
+			}
+			if warns && !strings.Contains(r.warn, "Wireless debugging") {
+				t.Error("the note names every debugging toggle")
 			}
 
 			want := []string{
@@ -872,5 +887,152 @@ func TestAMovedListDoesNotFallBackWhenTheTVHasARecord(t *testing.T) {
 	commands, err := RestoreCommands(w.record, moved, "", &warn)
 	if err != nil || slices.Contains(commands, "pm enable com.example.already_off") {
 		t.Errorf("commands %v, %v", commands, err)
+	}
+}
+
+func TestEveryRunEndsWithTheWaitBeforeARebootAfterItsLastPmCommand(t *testing.T) {
+	w := newWorld(t)
+	f := newTV()
+	f.adbSecure = "0"
+	disabled := w.disable(f, DisableOptions{})
+	must(t, disabled)
+	restored := w.restore(f)
+	must(t, restored)
+	for operation, r := range map[string]result{"disable": disabled, "restore": restored} {
+		if strings.Count(r.warn, tv.RebootDelayNotice) != 1 {
+			t.Errorf("%s warnings: %s", operation, r.warn)
+		}
+		if last := r.sent[len(r.sent)-1]; last != listDisabledPackages {
+			t.Errorf("%s last command %q", operation, last)
+		}
+	}
+
+	notice := strings.Index(disabled.warn, tv.RebootDelayNotice)
+	if rebootAdvice := strings.Index(disabled.warn, "reboot it"); notice > rebootAdvice {
+		t.Errorf("the wait comes before the advice to reboot:\n%s", disabled.warn)
+	}
+}
+
+func TestADryRunRestoreDoesNotAskForAWait(t *testing.T) {
+	w := newWorld(t)
+	must(t, w.disable(newTV(), DisableOptions{}))
+	var warn bytes.Buffer
+	if _, err := RestoreCommands(w.record, w.list, "", &warn); err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(warn.String(), tv.RebootDelayNotice) {
+		t.Errorf("nothing reached the TV, yet: %s", warn.String())
+	}
+}
+
+func TestAFailedBatchDoesNotAskForAWait(t *testing.T) {
+	w := newWorld(t)
+	must(t, w.disable(newTV(), DisableOptions{}))
+	f := newTV()
+	f.unreachable = true
+	r := w.restore(f)
+	if r.err == nil || strings.Contains(r.warn, tv.RebootDelayNotice) {
+		t.Errorf("err %v\n%s", r.err, r.warn)
+	}
+}
+
+func TestAListThatDisablesCoreAndroidIsRefusedWhole(t *testing.T) {
+	core := []string{
+		"com.google.android.permissioncontroller",
+		"com.android.packageinstaller",
+		"com.google.android.overlay.modules.ext.services",
+		"com.android.providers.media",
+		"com.android.systemui",
+	}
+
+	w := newWorld(t, append([]string{"com.example.enabled"}, core...)...)
+	r := w.disable(newTV(), DisableOptions{ForceHome: true, ForceSetupWizard: true})
+	if r.err == nil {
+		t.Fatal("expected an error")
+	}
+
+	for _, name := range core {
+		if !strings.Contains(r.err.Error(), name) {
+			t.Errorf("%s is not named in: %v", name, r.err)
+		}
+	}
+
+	if len(r.sent) != 0 || w.loadRecord() != nil {
+		t.Errorf("sent %v; a refused list writes no record", r.sent)
+	}
+}
+
+func TestProvidersSafeToDisableAreAllowed(t *testing.T) {
+	w := newWorld(t, "com.android.providers.calendar", "com.android.providers.contacts",
+		"com.android.providers.userdictionary", "com.android.providers.blockednumber",
+		"com.android.settings.intelligence")
+	r := w.disable(newTV(), DisableOptions{})
+	must(t, r)
+	if len(r.sent) != 6 {
+		t.Errorf("sent %v", r.sent)
+	}
+}
+
+func TestPlaceholderHomesDoNotCountAsAnotherLauncher(t *testing.T) {
+	for _, placeholder := range []string{
+		"com.tcl.keycustomfunctionservice/.FallbackHome",
+		"com.duokan.factorytest/.FactoryLauncher",
+		"com.example.factory_test/.Main",
+		"com.mediatek.FactoryMode/.Home",
+	} {
+		t.Run(placeholder, func(t *testing.T) {
+			f := homeTV()
+			f.claims = []string{stock, placeholder}
+			r := homeWorld(t).disable(f, DisableOptions{})
+			must(t, r)
+			if slices.Contains(r.sent, "pm disable-user --user 0 "+stock) {
+				t.Errorf("%s left as the only Home", placeholder)
+			}
+		})
+	}
+}
+
+func TestAPackageWithARealHomeBesideItsFallbackStillCounts(t *testing.T) {
+	f := homeTV()
+	f.installed = append(f.installed, custom)
+	f.claims = []string{stock, custom + "/.FallbackHome", custom + "/.MainActivity"}
+	r := homeWorld(t).disable(f, DisableOptions{})
+	must(t, r)
+	if !slices.Contains(r.sent, "pm disable-user --user 0 "+stock) {
+		t.Errorf("sent %v", r.sent)
+	}
+}
+
+func TestATVWithoutCmdFindsHomeThroughDumpsysActivity(t *testing.T) {
+	f := homeTV()
+	f.home = "/system/bin/sh: cmd: not found"
+	f.claimsFail = true
+	f.activities = "  mHomeProcess: ProcessRecord{52f4a5c8 2f4b:" + stock + "/u0a56}\r\n"
+	r := homeWorld(t).disable(f, DisableOptions{})
+	must(t, r)
+	if slices.Contains(r.sent, "pm disable-user --user 0 "+stock) {
+		t.Error("the only Home was disabled on a TV without cmd")
+	}
+
+	if strings.Contains(r.warn, "Home guard did not run") {
+		t.Errorf("warnings: %s", r.warn)
+	}
+}
+
+func TestAHomeNobodyCanNameIsSaidOutLoud(t *testing.T) {
+	f := homeTV()
+	f.home = "/system/bin/sh: cmd: not found"
+	f.activities = "  mHomeProcess: null\n"
+	r := homeWorld(t).disable(f, DisableOptions{})
+	must(t, r)
+	if !strings.Contains(r.warn, "Home guard did not run") {
+		t.Errorf("warnings: %s", r.warn)
+	}
+
+	forced := homeWorld(t).disable(f, DisableOptions{ForceHome: true})
+	must(t, forced)
+	if strings.Contains(forced.warn, "Home guard did not run") {
+		t.Error("--force-home asked for no guard")
 	}
 }

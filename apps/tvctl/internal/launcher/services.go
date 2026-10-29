@@ -9,9 +9,16 @@ import (
 	"github.com/kienmai160598/freeTV/apps/tvctl/internal/tv"
 )
 
-const addAccessibilityService = `services=$(settings get secure enabled_accessibility_services); ` +
+const allowAutoStart = "cmd appops set " + tv.Launcher + " AUTO_START allow 2>/dev/null; " +
+	"cmd appops set " + tv.Launcher + " APP_AUTO_START allow 2>/dev/null; " +
+	"appops write-settings 2>/dev/null; "
+
+const addAccessibilityService = allowAutoStart +
+	`services=$(settings get secure enabled_accessibility_services); ` +
 	`case "$services" in ` +
-	`*%[1]s*) ;; ` +
+	`*%[1]s*) settings put secure enabled_accessibility_services ''; ` +
+	`settings put secure accessibility_enabled 0; sleep 1; ` +
+	`settings put secure enabled_accessibility_services "$services" ;; ` +
 	`null|'') settings put secure enabled_accessibility_services %[2]s ;; ` +
 	`*) settings put secure enabled_accessibility_services "$services:%[2]s" ;; ` +
 	`esac; ` +

@@ -56,6 +56,11 @@ final class Contract {
         static final String SETTINGS_KEY_PANEL = "settings_key_panel";
         static final String INPUT_KEY_KEYCODES = "input_key_keycodes";
         static final String APP_KEYS = "app_keys";
+        static final String KEY_FILTER = "key_filter";
+        static final String GAMEPAD_PASSTHROUGH = "gamepad_passthrough";
+        static final String RESTORE_KEY_SERVICES = "restore_key_services";
+        static final String CONSUME_VOLUME_KEYS = "consume_volume_keys";
+        static final String POWER_ON_HOME = "power_on_home";
         static final String WALLPAPER = "wallpaper";
         static final String WALLPAPER_ROTATION_MINUTES = "wallpaper_rotation_minutes";
         static final String WALLPAPER_DIM = "wallpaper_dim";

@@ -9,13 +9,6 @@ import (
 	"github.com/kienmai160598/freeTV/apps/tvctl/internal/tv"
 )
 
-var knownStockLaunchers = []string{
-	"com.google.android.tvlauncher",
-	"com.google.android.apps.tv.launcherx",
-	"com.google.android.leanbacklauncher",
-	"com.mitv.tvhome",
-}
-
 const androidChooser = "android"
 
 const homeQueryFailed = "could not ask the TV which launcher owns Home (%v). " +
@@ -44,7 +37,7 @@ func chooseStockLauncher(dev tv.Device, chosen string, out io.Writer) (string, e
 
 	owner := tv.PackageOf(tv.LastLine(answer))
 	switch {
-	case slices.Contains(knownStockLaunchers, owner):
+	case slices.Contains(tv.KnownStockLaunchers, owner):
 		return owner, nil
 	case owner == tv.Launcher:
 		fmt.Fprintln(out, "Home already belongs to this launcher; nothing will be disabled.")
@@ -67,7 +60,7 @@ func validChosenLauncher(chosen string) (string, error) {
 func stockLauncherBehindChooser(dev tv.Device, out io.Writer) (string, error) {
 	claimants, _ := tv.HomeClaimants(dev)
 	var found []string
-	for _, known := range knownStockLaunchers {
+	for _, known := range tv.KnownStockLaunchers {
 		if slices.Contains(claimants, known) {
 			found = append(found, known)
 		}

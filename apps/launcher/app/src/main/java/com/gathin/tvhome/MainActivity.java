@@ -83,6 +83,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -90,7 +91,6 @@ import java.util.Set;
  */
 public class MainActivity extends Activity implements AppAdapter.TileListener {
 
-    private static final int LAUNCHER_SETTINGS_REQUEST = 42;
     /** Sent by QuickSettingsActivity: open Launcher settings from here so Home rebuilds when they close. */
     static final String ACTION_LAUNCHER_SETTINGS = "com.gathin.tvhome.action.LAUNCHER_SETTINGS";
     /** InputKeyService on a TV without a system input switcher: Home with its Inputs menu open. */
@@ -109,8 +109,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             Palette.publish(Palette.fromBackground(Config.load(this).backgroundColor));
         } else if (HomeLook.BACKDROP_KEY.equals(key)) {
             applyBackdrop(HomeLook.backdrop(preferences));
+        } else if (isMotionChoice(key)) {
+            motionChoiceChanged = true;
         }
     };
+    private boolean motionChoiceChanged;
+
+    private static boolean isMotionChoice(String key) {
+        return Contract.Key.ANIMATIONS.equals(key) || Contract.Key.ADVANCED_EFFECTS.equals(key);
+    }
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
@@ -169,6 +176,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** config settings_key_keycodes / settings_key_panel, so the Settings button works on Home without HomeKeyService. */
     private int[] settingsKeycodes = new int[0];
     private boolean settingsKeyPanel;
+    private static final int FIRST_VENDOR_KEYCODE = 1000;
+    private Map<Integer, String> vendorAppKeys = Collections.emptyMap();
+    private boolean homeStarted;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     private boolean reducedMotion;
     /** config.xml dock_row: the first row is a separate dock (band, parked low, top shelf) rather than plain grid. */
@@ -324,8 +334,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
         homeConfig = cfg;
+        if (cfg.restoreKeyServices) ServiceRepair.putBackMissing(this);
         settingsKeycodes = cfg.settingsKeycodes;
         settingsKeyPanel = cfg.settingsKeyPanel;
+        vendorAppKeys = RemoteKeys.parseAppKeys(cfg.appKeys);
         COLUMNS = cfg.columns;
         settingsPreferences = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         settingsPreferences.registerOnSharedPreferenceChangeListener(liveSettings);
@@ -666,7 +678,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean openLauncherSettingsIfAsked(Intent intent) {
         if (intent == null || !ACTION_LAUNCHER_SETTINGS.equals(intent.getAction())) return false;
         setIntent(new Intent(Intent.ACTION_MAIN));
-        startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
+        startActivity(new Intent(this, LauncherSettingsActivity.class));
         return true;
     }
 
@@ -692,6 +704,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStart() {
         super.onStart();
+        homeStarted = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -709,7 +722,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // The shapes start turning once the return transition is over, so they never compete with it.
         if (backdrop != null) handler.postDelayed(startBackdrop, BACKDROP_RESUME_DELAY_MS);
         // A festival that started or ended while Home was in the background: rebuild with or without it.
-        if (festive != festival.active(LocalDate.now())) {
+        if (festive != festival.active(LocalDate.now()) || motionChoiceChanged) {
             recreate();
             return;
         }
@@ -741,12 +754,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 handler.postDelayed(this::playPetalShower, 450);
             }
         }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK) recreate();
     }
 
     /** Rebuilds the tiles (and the module cards), then puts focus back where it was. */
@@ -972,9 +979,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStop() {
         super.onStop();
+        homeStarted = false;
         cameBackFromBackground = true;
         unregisterReceiver(packageReceiver);
         rebuildOnResume = true;
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (MemoryTrimPolicy.shouldRelease(level, homeStarted)) wallpaperPlayer.releaseBitmap();
     }
 
     @Override
@@ -1027,6 +1041,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return false;
     }
 
+    private boolean handleVendorAppKey(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (keyCode < FIRST_VENDOR_KEYCODE) return false;
+
+        return RemoteKeys.handle(this, event, vendorAppKeys.get(keyCode));
+    }
+
     // ---- reorder ---------------------------------------------------------------------------------
 
     /**
@@ -1042,6 +1063,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) wakeBackdrop();
+        if (handleVendorAppKey(event)) return true;
         if (handleSettingsKey(event)) return true;
         if (!reordering) return super.dispatchKeyEvent(event);
         if (widgets.handleEditKey(event, getCurrentFocus())) return true;
@@ -2501,7 +2523,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // ---- launcher settings and module cards -------------------------------------------------------
 
     private void openLauncherSettings() {
-        startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
+        startActivity(new Intent(this, LauncherSettingsActivity.class));
     }
 
     /** Hold OK on Settings: the launcher's menu (settings, module cards, dock and order editing). */
