@@ -28,15 +28,26 @@ var (
 	safeWallpaperName = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 )
 
+const startLauncherAsHome = `case "$(` + tv.HomeQuery + ` | tail -n 1)" in ` +
+	tv.Launcher + `/*) ` + tv.StartHome + ` >/dev/null ;; ` +
+	`*) am start -n ` + tv.LauncherActivity + ` >/dev/null ;; ` +
+	`esac`
+
+const (
+	writeServicesBack = `settings put secure enabled_accessibility_services "$services"; ` +
+		`settings put secure accessibility_enabled 1`
+	switchServicesOff = `settings put secure enabled_accessibility_services ''; ` +
+		`settings put secure accessibility_enabled 0`
+)
+
 const restartHomeKeepingAccessibility = "" +
 	`services=$(settings get secure enabled_accessibility_services); ` +
 	`am force-stop ` + tv.Launcher + `; ` +
-	`am start -n ` + tv.LauncherActivity + ` >/dev/null; ` +
+	startLauncherAsHome + `; ` +
 	`case "$services" in *` + tv.Launcher + `*) ` +
-	`sleep 1; ` +
-	`settings put secure enabled_accessibility_services ''; ` +
-	`settings put secure enabled_accessibility_services "$services"; ` +
-	`settings put secure accessibility_enabled 1 ;; ` +
+	`sleep 1; ` + writeServicesBack + `; ` +
+	`sleep 1; ` + switchServicesOff + `; ` +
+	`sleep 1; ` + writeServicesBack + ` ;; ` +
 	`esac`
 
 type theme struct {

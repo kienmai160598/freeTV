@@ -29,6 +29,10 @@ func Disable(
 		return err
 	}
 
+	if err := refuseCorePackages(listPath, names); err != nil {
+		return err
+	}
+
 	targets := applyGuards(dev, names, opts, warn)
 	adbIsInsecure := readADBIsInsecure(dev)
 
@@ -40,6 +44,7 @@ func Disable(
 		return err
 	}
 
+	fmt.Fprint(warn, tv.RebootDelayNotice)
 	if adbIsInsecure {
 		fmt.Fprint(warn, insecureADBWarning)
 	}

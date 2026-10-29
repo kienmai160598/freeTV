@@ -17,7 +17,11 @@ var homeAnswerersThatAreNotLaunchers = []string{
 	"com.android.provision",
 }
 
-var wifiNetworkOwner = regexp.MustCompile(`cname=\S*`)
+var (
+	wifiNetworkOwner = regexp.MustCompile(`cname=\S*`)
+	factoryTestApp   = regexp.MustCompile(`(?i)factorytest|factory_test|factorymode`)
+	homeProcess      = regexp.MustCompile(`mHomeProcess:.*[: ]([A-Za-z0-9_.]+)/[A-Za-z0-9_.]+`)
+)
 
 const unknownWifiOwnerWarning = "Skipping %s: could not check which app owns the saved Wi-Fi " +
 	"networks (dumpsys wifi failed or showed none).\n" +
@@ -32,6 +36,11 @@ const onlyHomeWarning = "Skipping %s: it owns Home, and no other app that can an
 	"is installed and staying enabled.\n" +
 	"Make the new launcher Home first (make install), then run this list again to disable " +
 	"the old one; or pass --force-home if you can still reach the TV.\n"
+
+const unknownHomeWarning = "Could not tell which app owns Home on this TV, so the Home guard " +
+	"did not run: neither \"cmd package resolve-activity\" (Android 7 and later) nor " +
+	"\"dumpsys activity\" named one.\n" +
+	"Check by hand that the list does not hold the only launcher before trusting this run.\n"
 
 func keepSetupWizardIfItOwnsWifi(dev tv.Device, targets []string, warn io.Writer) []string {
 	if !slices.Contains(targets, tv.SetupWizard) {
@@ -58,8 +67,17 @@ func ownedBySetupWizard(owner string) bool {
 }
 
 func keepOnlyHome(dev tv.Device, targets []string, warn io.Writer) []string {
-	owner := tv.PackageOf(tv.Home(dev))
-	if owner == "" || !slices.Contains(targets, owner) {
+	if len(targets) == 0 {
+		return targets
+	}
+
+	owner := homeOwner(dev)
+	if owner == "" {
+		fmt.Fprint(warn, unknownHomeWarning)
+		return targets
+	}
+
+	if !slices.Contains(targets, owner) {
 		return targets
 	}
 
@@ -71,6 +89,24 @@ func keepOnlyHome(dev tv.Device, targets []string, warn io.Writer) []string {
 	return without(targets, owner)
 }
 
+func homeOwner(dev tv.Device) string {
+	if owner := tv.PackageOf(tv.Home(dev)); tv.PackageName.MatchString(owner) {
+		return owner
+	}
+
+	dump, err := dev.Shell("dumpsys activity")
+	if err != nil {
+		return ""
+	}
+
+	match := homeProcess.FindStringSubmatch(strings.ReplaceAll(dump, "\r", ""))
+	if match == nil || !tv.PackageName.MatchString(match[1]) {
+		return ""
+	}
+
+	return match[1]
+}
+
 func anotherLauncherStays(dev tv.Device, owner string, targets []string) bool {
 	claimants, err := tv.HomeClaimants(dev)
 	if err != nil {
@@ -80,7 +116,8 @@ func anotherLauncherStays(dev tv.Device, owner string, targets []string) bool {
 	return slices.ContainsFunc(claimants, func(claimant string) bool {
 		return claimant != owner &&
 			!slices.Contains(targets, claimant) &&
-			!slices.Contains(homeAnswerersThatAreNotLaunchers, claimant)
+			!slices.Contains(homeAnswerersThatAreNotLaunchers, claimant) &&
+			!factoryTestApp.MatchString(claimant)
 	})
 }
 

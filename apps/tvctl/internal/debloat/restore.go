@@ -41,6 +41,15 @@ func RestoreCommands(recordPath, listPath, stock string, warn io.Writer) ([]stri
 	return commandsFromRecord(record, names, stock, warn), nil
 }
 
+func Restore(dev tv.Device, commands []string, out, warn io.Writer) error {
+	if err := tv.Batch(dev, commands, out); err != nil {
+		return err
+	}
+
+	fmt.Fprint(warn, tv.RebootDelayNotice)
+	return nil
+}
+
 func validStockLauncher(stock string) (string, error) {
 	if stock == "" {
 		return tv.StockLauncher, nil

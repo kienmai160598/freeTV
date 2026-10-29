@@ -17,9 +17,16 @@ Go 1.22, standard library only. Module `github.com/kienmai160598/freeTV/apps/tvc
 ## Invariants
 
 - A list is refused as a whole if any entry is not a bare package name; BOM and CRLF are stripped.
+- A list naming a core Android package (`android`, SystemUI, Settings, permission controller,
+  package installer, providers other than calendar/contacts/dictionary/blocked numbers, the
+  Google module overlays) is refused, with no override flag: the TV may not boot again.
 - `disable`: guards first (setupwraith while it owns Wi-Fi; the Home owner while no other launcher
-  would answer Home; settings apps and setupwraith never count as launchers), then the recovery
-  record is written, then `pm disable-user --user 0` per package, then `pm list packages -d`.
+  would answer Home; settings apps, `*FallbackHome` and setupwraith never count as launchers), then
+  the recovery record is written, then `pm disable-user --user 0` per package, then
+  `pm list packages -d`. Home comes from `cmd package resolve-activity`, else from
+  `dumpsys activity`; when neither names one the guard is skipped with a warning.
+- `disable`, `restore` and `install` end with `tv.RebootDelayNotice`: Android writes package
+  state about 10 s after a change, so a reboot within 15 s boots with the old state.
 - Recovery record: `~/.cleanyourtv/recovery-<host>-<sha1(resolved list path)[:8]>.json`, JSON with
   `created, home, host, list, packages{name: enabled|disabled|absent}, settings, version: 1`,
   written atomically. First record wins; later runs only add new names. A record that fails
@@ -31,6 +38,10 @@ Go 1.22, standard library only. Module `github.com/kienmai160598/freeTV/apps/tvc
 - `install`: push APK to `/data/local/tmp`, `pm install -r`, `am start -W` must say `Status: ok`
   with no `Error` line, then disable stock and set Home, then confirm Home; else roll back and, if
   that fails too, write `~/freeTV-handover-<host>.txt`.
+- Accessibility services: `install` grants the `AUTO_START` and `APP_AUTO_START` app-ops to the
+  launcher (TCL), and a service already listed is cleared and written back so it binds again
+  after `pm install -r`. The list is empty for about a second while that happens.
+- `theme` restarts Home with `tv.StartHome` (`am start` with the HOME intent), never by package.
 - Every behaviour that changes what reaches a TV has a test against `tvtest.Fake`; protocol changes
   are tested against the fake adbd in `internal/adb/adb_test.go` (4 KB packets like Android 5).
 

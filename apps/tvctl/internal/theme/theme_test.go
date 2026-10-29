@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kienmai160598/freeTV/apps/tvctl/internal/tv"
 	"github.com/kienmai160598/freeTV/apps/tvctl/internal/tv/tvtest"
 )
 
@@ -116,5 +117,52 @@ func TestShippedThemesAreValid(t *testing.T) {
 		if err := Apply(&tvtest.Fake{}, folder, &bytes.Buffer{}); err != nil {
 			t.Errorf("%s: %v", folder, err)
 		}
+	}
+}
+
+func TestApplyAcceptsAConfigSavedWithABOM(t *testing.T) {
+	dev := &tvtest.Fake{}
+	folder := writeTheme(t, map[string]string{"config.json": "\xef\xbb\xbf{\"columns\": 6}"})
+	if err := Apply(dev, folder, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := dev.Pushed[remoteConfig]; !ok {
+		t.Errorf("pushed %v", dev.Pushed)
+	}
+}
+
+func TestResetRemovesEveryThemeFileIncludingTheCollection(t *testing.T) {
+	dev := &tvtest.Fake{Answer: func(string) (string, error) { return "reset\n", nil }}
+	if err := Reset(dev, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+
+	command := strings.Join(dev.Commands, "\n")
+	for _, removed := range []string{
+		remoteConfig,
+		remoteWallpaper,
+		remoteWallpapers + "/*.jpg",
+		remoteWallpapers + "/*.WEBP",
+	} {
+		if !strings.Contains(command, removed) {
+			t.Errorf("%s is not removed: %s", removed, command)
+		}
+	}
+}
+
+func TestRestartComesBackAsHomeAndRebindsTheKeyServices(t *testing.T) {
+	restart := restartHomeKeepingAccessibility
+	whenHome := strings.Index(restart, tv.Launcher+"/*) "+tv.StartHome)
+	otherwise := strings.Index(restart, "*) am start -n "+tv.LauncherActivity)
+	if whenHome < 0 || otherwise < whenHome {
+		t.Errorf("Home is not restarted through the Home intent: %s", restart)
+	}
+
+	firstWrite := strings.Index(restart, writeServicesBack)
+	switchOff := strings.Index(restart, switchServicesOff)
+	lastWrite := strings.LastIndex(restart, writeServicesBack)
+	if firstWrite < 0 || switchOff < firstWrite || lastWrite < switchOff {
+		t.Errorf("write back, switch off, write back again: %s", restart)
 	}
 }
