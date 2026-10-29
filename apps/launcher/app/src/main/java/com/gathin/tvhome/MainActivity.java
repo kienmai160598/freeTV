@@ -83,6 +83,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -175,6 +176,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** config settings_key_keycodes / settings_key_panel, so the Settings button works on Home without HomeKeyService. */
     private int[] settingsKeycodes = new int[0];
     private boolean settingsKeyPanel;
+    private static final int FIRST_VENDOR_KEYCODE = 1000;
+    private Map<Integer, String> vendorAppKeys = Collections.emptyMap();
+    private boolean homeStarted;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     private boolean reducedMotion;
     /** config.xml dock_row: the first row is a separate dock (band, parked low, top shelf) rather than plain grid. */
@@ -333,6 +337,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (cfg.restoreKeyServices) ServiceRepair.putBackMissing(this);
         settingsKeycodes = cfg.settingsKeycodes;
         settingsKeyPanel = cfg.settingsKeyPanel;
+        vendorAppKeys = RemoteKeys.parseAppKeys(cfg.appKeys);
         COLUMNS = cfg.columns;
         settingsPreferences = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         settingsPreferences.registerOnSharedPreferenceChangeListener(liveSettings);
@@ -699,6 +704,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStart() {
         super.onStart();
+        homeStarted = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -973,9 +979,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStop() {
         super.onStop();
+        homeStarted = false;
         cameBackFromBackground = true;
         unregisterReceiver(packageReceiver);
         rebuildOnResume = true;
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (MemoryTrimPolicy.shouldRelease(level, homeStarted)) wallpaperPlayer.releaseBitmap();
     }
 
     @Override
@@ -1028,6 +1041,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return false;
     }
 
+    private boolean handleVendorAppKey(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (keyCode < FIRST_VENDOR_KEYCODE) return false;
+
+        return RemoteKeys.handle(this, event, vendorAppKeys.get(keyCode));
+    }
+
     // ---- reorder ---------------------------------------------------------------------------------
 
     /**
@@ -1043,6 +1063,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) wakeBackdrop();
+        if (handleVendorAppKey(event)) return true;
         if (handleSettingsKey(event)) return true;
         if (!reordering) return super.dispatchKeyEvent(event);
         if (widgets.handleEditKey(event, getCurrentFocus())) return true;

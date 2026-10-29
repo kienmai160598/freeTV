@@ -84,6 +84,18 @@
          install grants it). -->
     <bool name="restore_key_services">false</bool>
 
+    <!-- With key_filter on, true makes the key services swallow Volume Up/Down and repeat a held
+         one themselves (500 ms, then every 60 ms). For firmware that applies a filtered volume key
+         twice, so one tap moves two steps (TCL G03, Android 11). Leave it off where a tap is one
+         step. A theme can set it. -->
+    <bool name="consume_volume_keys">false</bool>
+
+    <!-- For TVs whose firmware opens the Live TV app (live_tv_package) by itself at every power-on.
+         With key_filter on, HomeKeyService sends a Live TV window back to Home until the first key
+         press in the 3 minutes after boot or the minute after the screen turns on; the first key
+         hands the TV to the user. A theme can set it. -->
+    <bool name="power_on_home">false</bool>
+
     <!-- More remote buttons that open the input switcher, by Android keycode (INPUT_KEY_SERVICE=1
          build-and-install.sh; KEYCODE_TV always does). For buttons only a disabled app answered: the Xiaomi
          MiTV-AXFR2 remote's PatchWall button is 192 (KEYCODE_BUTTON_5). `dumpsys window policy` lists which
@@ -104,8 +116,10 @@
          is disabled (Chromecast with Google TV, Xiaomi MiTV-AXFR2): 190:com.google.android.youtube.tv brings
          it back. The KTC LUMIO VISION remote (Realtek Google TV) sends Netflix 191, YouTube 190, Prime Video 195
          and TL;DR 200. TCL's Realtek Google TVs (G07) send KEYCODE_TCL_NETFLIX 4062 and KEYCODE_TCL_YOUTUBE 4065,
-         broadcasts only the stock home answered. A listed app that is not installed leaves the button doing
-         nothing. Leave empty to omit. -->
+         broadcasts only the stock home answered; Home answers keycodes from 1000 up itself as
+         well, since such keys reach only the focused window. "keycode:package/.Activity" opens
+         that activity instead of the app's launcher entry. A listed app that is not installed
+         leaves the button doing nothing. Leave empty to omit. -->
     <string-array name="app_keys" translatable="false">
         <item>190:com.google.android.youtube.tv</item>
         <item>4062:com.netflix.ninja</item>

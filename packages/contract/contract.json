@@ -50,6 +50,8 @@
     { "name": "key_filter", "type": "bool" },
     { "name": "gamepad_passthrough", "type": "bool" },
     { "name": "restore_key_services", "type": "bool" },
+    { "name": "consume_volume_keys", "type": "bool" },
+    { "name": "power_on_home", "type": "bool" },
     { "name": "wallpaper", "type": "bool" },
     { "name": "wallpaper_rotation_minutes", "type": "int", "min": 0, "max": 1440 },
     { "name": "wallpaper_dim", "type": "int", "min": 0, "max": 90 },

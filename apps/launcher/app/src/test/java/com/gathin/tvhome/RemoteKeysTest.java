@@ -3,6 +3,7 @@ package com.gathin.tvhome;
 import java.util.Map;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class RemoteKeysTest {
@@ -35,5 +36,27 @@ public class RemoteKeysTest {
     @Test public void theLastEntryForAKeycodeWins() {
         Map<Integer, String> keys = parse("190:a.b", "190:c.d");
         assertEquals("c.d", keys.get(190));
+    }
+
+    @Test public void activityTargetsKeepTheirSlash() {
+        Map<Integer, String> keys = parse("191:io.github.app/.QuickActivity");
+        assertEquals("io.github.app/.QuickActivity", keys.get(191));
+        assertTrue(RemoteKeys.isActivityTarget(keys.get(191)));
+        assertFalse(RemoteKeys.isActivityTarget("com.netflix.ninja"));
+        assertFalse(RemoteKeys.isActivityTarget("/.Activity"));
+    }
+
+    @Test public void bothServicesCopiesOfOnePressLaunchOnce() {
+        RemoteKeys.Presses presses = new RemoteKeys.Presses();
+        assertTrue(presses.firstCopy("3:190:0", 1000));
+        assertFalse(presses.firstCopy("3:190:0", 1000));
+    }
+
+    @Test public void eachNewPressLaunches() {
+        RemoteKeys.Presses presses = new RemoteKeys.Presses();
+        assertTrue(presses.firstCopy("3:190:0", 1000));
+        assertTrue(presses.firstCopy("3:190:0", 1400));
+        assertTrue(presses.firstCopy("3:4062:0", 1400));
+        assertTrue(presses.firstCopy("3:190:0", 1400));
     }
 }

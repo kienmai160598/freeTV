@@ -34,8 +34,11 @@ Locales: English and Vietnamese only.
 - Inputs on Xiaomi's China TVs: `XiaomiInputs` (their player's source numbers, from the port labels).
 - Config: `Config` reads `res/values/config.xml`, overlaid by `/sdcard/Android/data/com.gathin.tvhome/files/config.json` (a theme).
   A copy in `files/config.json` stands in while external storage is not mounted yet at boot.
-- Module cards: `Cards`, `CardFeature`. Remote keys: `RemoteKeys`, `GamepadPassthrough`,
-  `ServiceRepair`. VPN pill badge: `VpnBadge`.
+- Module cards: `Cards`, `CardFeature`. Remote keys: `RemoteKeys` (each press launches once, though
+  both services get it), `GamepadPassthrough`, `ServiceRepair`, `VolumeKeys`, `PowerOnHome`.
+  VPN pill badge: `VpnBadge`.
+- Memory: `MemoryTrimPolicy`; Home drops the wallpaper bitmap on `TRIM_MEMORY_BACKGROUND` and up (or
+  `RUNNING_LOW`/`CRITICAL`) while stopped, and decodes it again when it resumes.
 - Updates: `LauncherRelease` (GitHub `releases/latest` of kienmai160598/freeTV, checked once when
   Launcher settings opens), `ReleaseInstaller` (streams `km-launcher.apk` into a PackageInstaller
   session, checks the asset's SHA-256), `InstallStatusReceiver`. Needs the `REQUEST_INSTALL_PACKAGES`
@@ -54,9 +57,11 @@ Unknown or mistyped theme keys are ignored; a theme that does not parse is ignor
 | `dock_apps`, `fill_dock`, `hidden_apps` | Dock order; fill free dock slots with grid apps; never-shown packages |
 | `columns` (1-8), `rows_below_dock` (0-3), `dock_row`, `dock_title`, `reorder_button` | Grid and dock layout |
 | `live_tv_package`, `live_tv_action`, `source_panel_service`, `source_panel_action`, `input_action` | Live TV and input switching on odd firmware |
-| `input_key_keycodes`, `app_keys` (`"190:pkg"`), `settings_key_keycodes`, `settings_key_scancodes`, `settings_key_panel` | Remote buttons for the key services |
+| `input_key_keycodes`, `app_keys` (`"190:pkg"` or `"190:pkg/.Activity"`; keycodes from 1000 up, such as TCL's Netflix 4062, also work on Home itself), `settings_key_keycodes`, `settings_key_scancodes`, `settings_key_panel` | Remote buttons for the key services |
 | `key_filter` (on), `gamepad_passthrough` (off) | The key services filter keys at all (off: TCL Google TV 12 keeps key repeat, the buttons go dead); stop filtering while a game controller is connected (`GamepadPassthrough`) |
-| `restore_key_services` (off) | After a force stop, Home puts the key services that were running back on `enabled_accessibility_services` (`ServiceRepair`, needs `WRITE_SECURE_SETTINGS`) |
+| `restore_key_services` (off) | After a force stop, Home puts the key services that were running back on `enabled_accessibility_services` (`ServiceRepair`, needs `WRITE_SECURE_SETTINGS`): add, remove, add, a second apart, so Android drops its crashed mark; each write goes ahead only while the list still reads what the last step left |
+| `consume_volume_keys` (off) | With `key_filter` on, the key services swallow Volume Up/Down and repeat a held one themselves (`VolumeKeys`, 500 ms then every 60 ms), for firmware that applies a filtered volume key twice (TCL G03, Android 11) |
+| `power_on_home` (off) | With `key_filter` on, `HomeKeyService` sends a `live_tv_package` window back to Home until the first key in the 3 minutes after boot or the minute after screen-on (`PowerOnHome`), for firmware that opens Live TV at every power-on |
 | `running_apps_keycodes` (`config.xml` only, not in the contract) | Buttons that open the running apps panel; 284 `KEYCODE_ALL_APPS`, 187 `KEYCODE_APP_SWITCH` |
 | `animations`, `advanced_effects`, `reduced_motion` | Motion level; reduced for weak GPUs (MediaTek MT5895) |
 | `background_color`, `wallpaper`, `wallpaper_rotation_minutes` (0-1440), `wallpaper_dim` (0-90), `sky_intensity` (0-100) | Backdrop; seeds the colour scheme |

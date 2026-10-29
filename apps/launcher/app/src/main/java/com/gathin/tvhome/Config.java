@@ -84,6 +84,8 @@ final class Config {
     final boolean keyFilter;
     final boolean gamepadPassthrough;
     final boolean restoreKeyServices;
+    final boolean consumeVolumeKeys;
+    final boolean powerOnHome;
     /** Whether themes may show a wallpaper (config.json, wallpaper). */
     final boolean wallpaperEnabled;
     /** Full-screen picture behind the launcher, or null for the plain colour. */
@@ -111,6 +113,8 @@ final class Config {
         this.keyFilter = keyServices.keyFilter;
         this.gamepadPassthrough = keyServices.gamepadPassthrough;
         this.restoreKeyServices = keyServices.restoreKeyServices;
+        this.consumeVolumeKeys = keyServices.consumeVolumeKeys;
+        this.powerOnHome = keyServices.powerOnHome;
         this.dockApps = Collections.unmodifiableList(dockApps);
         this.fillDock = fillDock;
         this.hiddenApps = Collections.unmodifiableList(hiddenApps);
@@ -186,6 +190,8 @@ final class Config {
         boolean keyFilter = res.getBoolean(R.bool.key_filter);
         boolean gamepadPassthrough = res.getBoolean(R.bool.gamepad_passthrough);
         boolean restoreKeyServices = res.getBoolean(R.bool.restore_key_services);
+        boolean consumeVolumeKeys = res.getBoolean(R.bool.consume_volume_keys);
+        boolean powerOnHome = res.getBoolean(R.bool.power_on_home);
         boolean applied = false;
 
         File dir = dir(ctx);
@@ -226,6 +232,8 @@ final class Config {
             keyFilter = bool(json, Contract.Key.KEY_FILTER, keyFilter);
             gamepadPassthrough = bool(json, Contract.Key.GAMEPAD_PASSTHROUGH, gamepadPassthrough);
             restoreKeyServices = bool(json, Contract.Key.RESTORE_KEY_SERVICES, restoreKeyServices);
+            consumeVolumeKeys = bool(json, Contract.Key.CONSUME_VOLUME_KEYS, consumeVolumeKeys);
+            powerOnHome = bool(json, Contract.Key.POWER_ON_HOME, powerOnHome);
         }
         // A theme push or reset invalidates choices made on the TV. On first use, remember the
         // current theme without clearing choices from an older launcher version.
@@ -258,18 +266,24 @@ final class Config {
                 Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, wallpaperEnabled, wallpaper,
                 wallpapers, rotationMinutes, wallpaperDim, applied,
                 festival, inputKeycodes, appKeys,
-                new KeyServices(keyFilter, gamepadPassthrough, restoreKeyServices));
+                new KeyServices(keyFilter, gamepadPassthrough, restoreKeyServices,
+                        consumeVolumeKeys, powerOnHome));
     }
 
     private static final class KeyServices {
         final boolean keyFilter;
         final boolean gamepadPassthrough;
         final boolean restoreKeyServices;
+        final boolean consumeVolumeKeys;
+        final boolean powerOnHome;
 
-        KeyServices(boolean keyFilter, boolean gamepadPassthrough, boolean restoreKeyServices) {
+        KeyServices(boolean keyFilter, boolean gamepadPassthrough, boolean restoreKeyServices,
+                boolean consumeVolumeKeys, boolean powerOnHome) {
             this.keyFilter = keyFilter;
             this.gamepadPassthrough = gamepadPassthrough;
             this.restoreKeyServices = restoreKeyServices;
+            this.consumeVolumeKeys = consumeVolumeKeys;
+            this.powerOnHome = powerOnHome;
         }
     }
 

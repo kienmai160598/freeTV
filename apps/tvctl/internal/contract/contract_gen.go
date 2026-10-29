@@ -76,6 +76,8 @@ const (
 	KeyKeyFilter                = "key_filter"
 	KeyGamepadPassthrough       = "gamepad_passthrough"
 	KeyRestoreKeyServices       = "restore_key_services"
+	KeyConsumeVolumeKeys        = "consume_volume_keys"
+	KeyPowerOnHome              = "power_on_home"
 	KeyWallpaper                = "wallpaper"
 	KeyWallpaperRotationMinutes = "wallpaper_rotation_minutes"
 	KeyWallpaperDim             = "wallpaper_dim"
@@ -118,6 +120,8 @@ var ConfigKeys = map[string]ConfigKey{
 	KeyKeyFilter:                {Name: KeyKeyFilter, Type: TypeBool},
 	KeyGamepadPassthrough:       {Name: KeyGamepadPassthrough, Type: TypeBool},
 	KeyRestoreKeyServices:       {Name: KeyRestoreKeyServices, Type: TypeBool},
+	KeyConsumeVolumeKeys:        {Name: KeyConsumeVolumeKeys, Type: TypeBool},
+	KeyPowerOnHome:              {Name: KeyPowerOnHome, Type: TypeBool},
 	KeyWallpaper:                {Name: KeyWallpaper, Type: TypeBool},
 	KeyWallpaperRotationMinutes: {Name: KeyWallpaperRotationMinutes, Type: TypeInt, Min: 0, Max: 1440},
 	KeyWallpaperDim:             {Name: KeyWallpaperDim, Type: TypeInt, Min: 0, Max: 90},

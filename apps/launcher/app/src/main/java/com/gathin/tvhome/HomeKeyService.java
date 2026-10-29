@@ -56,6 +56,9 @@ public class HomeKeyService extends AccessibilityService {
     private BroadcastReceiver unlockWaiter;
     private boolean configLoaded;
     private boolean notedForRepair;
+    private boolean consumeVolumeKeys;
+    private PowerOnHome powerOnHome = new PowerOnHome("");
+    private BroadcastReceiver screenOnWaiter;
     private GamepadPassthrough gamepads;
 
     @Override
@@ -104,6 +107,10 @@ public class HomeKeyService extends AccessibilityService {
         settingsPanel = config.settingsKeyPanel;
         appKeys = RemoteKeys.parseAppKeys(config.appKeys);
         notedForRepair = config.restoreKeyServices;
+        consumeVolumeKeys = config.consumeVolumeKeys && config.keyFilter;
+        boolean powerOnHomeWanted = config.powerOnHome && config.keyFilter;
+        powerOnHome = new PowerOnHome(powerOnHomeWanted ? config.liveTvPackage : "");
+        if (powerOnHome.enabled()) armPowerOnHome();
         if (notedForRepair) ServiceRepair.noteRunning(this, getClass());
         RemoteKeys.stopFilteringUnless(this, config.keyFilter);
         if (gamepads == null) gamepads = GamepadPassthrough.startIfWanted(this, config);
@@ -120,9 +127,29 @@ public class HomeKeyService extends AccessibilityService {
     @Override
     public void onDestroy() {
         stopWaitingForUnlock();
+        stopWaitingForScreenOn();
+        if (consumeVolumeKeys) VolumeKeys.stop();
         settle.removeCallbacks(replaceOtherHome);
         if (gamepads != null) gamepads.stop();
         super.onDestroy();
+    }
+
+    private void armPowerOnHome() {
+        powerOnHome.armUntil(JUST_BOOTED_MS);
+        screenOnWaiter = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                powerOnHome.armAfterScreenOn(SystemClock.elapsedRealtime());
+            }
+        };
+        registerReceiver(screenOnWaiter, new IntentFilter(Intent.ACTION_SCREEN_ON));
+    }
+
+    private void stopWaitingForScreenOn() {
+        if (screenOnWaiter == null) return;
+
+        unregisterReceiver(screenOnWaiter);
+        screenOnWaiter = null;
     }
 
     private boolean isSettingsKey(KeyEvent event) {
@@ -136,6 +163,9 @@ public class HomeKeyService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         if (!configLoaded) return false;
 
+        if (event.getAction() == KeyEvent.ACTION_DOWN) powerOnHome.onKeyDown(event.getKeyCode());
+        if (consumeVolumeKeys && VolumeKeys.handle(this, event)) return true;
+
         // The stock launcher handled the remote's Settings button; with it disabled the button does nothing.
         if (isSettingsKey(event)) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
@@ -145,11 +175,7 @@ public class HomeKeyService extends AccessibilityService {
             }
             return true;
         }
-        String app = appKeys.get(event.getKeyCode());
-        if (app != null) {
-            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) RemoteKeys.launch(this, app);
-            return true;
-        }
+        if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()))) return true;
         boolean standsInForHome = standsInForHome() || stockHome() != null;
         boolean home = event.getKeyCode() == KeyEvent.KEYCODE_ALL_APPS
                 || (event.getKeyCode() == KeyEvent.KEYCODE_HOME && standsInForHome);
@@ -222,6 +248,11 @@ public class HomeKeyService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (!configLoaded) return;
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.getPackageName() == null) return;
+        if (powerOnHome.sendsHome(event.getPackageName(), SystemClock.elapsedRealtime())) {
+            settle.removeCallbacks(replaceOtherHome);
+            openHome();
+            return;
+        }
         if (isOtherHomeWindow(event)) {
             settle.removeCallbacks(replaceOtherHome);
             settle.postDelayed(replaceOtherHome, SETTLE_MS);

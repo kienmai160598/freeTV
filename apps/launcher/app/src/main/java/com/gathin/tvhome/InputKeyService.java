@@ -33,6 +33,7 @@ public class InputKeyService extends AccessibilityService {
     private CharSequence frontPackage = "";
     private static final String[] OVERLAYS = {"com.android.systemui", "com.xiaomi.mitv.systemui"};
     private boolean notedForRepair;
+    private boolean consumeVolumeKeys;
     private GamepadPassthrough gamepads;
 
     @Override
@@ -44,6 +45,7 @@ public class InputKeyService extends AccessibilityService {
         appKeys = RemoteKeys.parseAppKeys(config.appKeys);
         runningAppsKeycodes = getResources().getIntArray(R.array.running_apps_keycodes);
         notedForRepair = config.restoreKeyServices;
+        consumeVolumeKeys = config.consumeVolumeKeys && config.keyFilter;
         if (notedForRepair) ServiceRepair.noteRunning(this, getClass());
         RemoteKeys.stopFilteringUnless(this, config.keyFilter);
         if (gamepads == null) gamepads = GamepadPassthrough.startIfWanted(this, config);
@@ -58,6 +60,7 @@ public class InputKeyService extends AccessibilityService {
     @Override
     public void onDestroy() {
         if (gamepads != null) gamepads.stop();
+        if (consumeVolumeKeys) VolumeKeys.stop();
         super.onDestroy();
     }
 
@@ -84,15 +87,10 @@ public class InputKeyService extends AccessibilityService {
             }
             return true;
         }
-        String app = appKeys.get(event.getKeyCode());
-        if (app == null && !isInputKey(event.getKeyCode())) return false;
-        if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-            if (app != null) {
-                RemoteKeys.launch(this, app);
-            } else {
-                openInputs();
-            }
-        }
+        if (consumeVolumeKeys && VolumeKeys.handle(this, event)) return true;
+        if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()))) return true;
+        if (!isInputKey(event.getKeyCode())) return false;
+        if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) openInputs();
         return true;
     }
 
