@@ -71,3 +71,10 @@ func TestApplyRefusesAThemeTheLauncherWouldIgnore(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+func TestAConfigSavedWithABOMIsRead(t *testing.T) {
+	report, err := checkConfig([]byte("\xef\xbb\xbf{\"columns\": 6}"))
+	if err != nil || len(report.problems) != 0 || len(report.unknown) != 0 {
+		t.Errorf("report %+v, err %v", report, err)
+	}
+}

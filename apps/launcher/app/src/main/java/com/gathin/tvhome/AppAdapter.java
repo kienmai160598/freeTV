@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -14,7 +13,6 @@ import android.graphics.Outline;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.provider.Settings;
-import android.util.DisplayMetrics;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -279,7 +277,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             String artKey = component.flattenToShortString() + '\n' + ri.activityInfo.applicationInfo.sourceDir;
             Drawable[] cached = art.get(artKey);
             if (cached == null) {
-                cached = new Drawable[]{loadBanner(pm, ri), ri.loadIcon(pm)};
+                cached = new Drawable[]{AppBanner.load(ctx, pm, ri.activityInfo), ri.loadIcon(pm)};
                 art.put(artKey, cached);
             }
             Drawable banner = cached[0];
@@ -335,33 +333,6 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     || !Objects.equals(a.name, b.name) || a.banner != b.banner || a.icon != b.icon) return false;
         }
         return true;
-    }
-
-    private Drawable loadBanner(PackageManager pm, ResolveInfo ri) {
-        if (SettingsBanner.PACKAGE.equals(ri.activityInfo.packageName)) return new SettingsBanner(ctx);
-        int id = ri.activityInfo.banner;
-        if (id == 0) id = ri.activityInfo.applicationInfo.banner;
-        Drawable banner = null;
-        if (id != 0) {
-            try {
-                Resources resources = pm.getResourcesForApplication(ri.activityInfo.applicationInfo);
-                // Keep at least xhdpi detail rather than downsampling artwork before the focus zoom.
-                int density = Math.max(DisplayMetrics.DENSITY_XHIGH, ctx.getResources().getDisplayMetrics().densityDpi);
-                banner = resources.getDrawableForDensity(id, density, null);
-            } catch (PackageManager.NameNotFoundException | Resources.NotFoundException ignored) {
-            }
-        }
-        if (banner == null) banner = ri.activityInfo.loadBanner(pm);
-        // A square "banner" counts as none: the tile shows the app's icon and name instead of a blur.
-        return banner != null && isBannerShaped(banner.getIntrinsicWidth(), banner.getIntrinsicHeight()) ? banner : null;
-    }
-
-    /**
-     * Some apps declare a small square image as their banner (Rockchip's Media Center ships a 64 px one). Cropped
-     * over a 16:9 tile it is a blur. A drawable with no intrinsic size (a colour, a shape) still fills the tile.
-     */
-    static boolean isBannerShaped(int width, int height) {
-        return width <= 0 || height <= 0 || width >= height * 1.4f;
     }
 
     @NonNull

@@ -1,6 +1,7 @@
 package tv
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 
@@ -65,23 +66,36 @@ func (s *Session) Exec(command string) ([]byte, error) {
 }
 
 func (s *Session) Pull(remote, local string) error {
+	return writeThroughPartFile(local, func(file io.Writer) error {
+		_, err := withConnection(
+			s,
+			func(conn *adb.Conn) (struct{}, error) { return struct{}{}, conn.Pull(remote, file) },
+		)
+		return err
+	})
+}
+
+func writeThroughPartFile(local string, write func(io.Writer) error) error {
 	if err := os.MkdirAll(filepath.Dir(local), 0o755); err != nil {
 		return err
 	}
 
-	file, err := os.Create(local)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = withConnection(
-		s,
-		func(conn *adb.Conn) (struct{}, error) { return struct{}{}, conn.Pull(remote, file) },
-	)
+	partPath := local + ".part"
+	file, err := os.Create(partPath)
 	if err != nil {
 		return err
 	}
 
-	return file.Close()
+	if err := write(file); err != nil {
+		file.Close()
+		os.Remove(partPath)
+		return err
+	}
+
+	if err := file.Close(); err != nil {
+		os.Remove(partPath)
+		return err
+	}
+
+	return os.Rename(partPath, local)
 }

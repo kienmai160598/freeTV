@@ -33,6 +33,7 @@ final class WallpaperPlayer {
     private boolean closed;
     private boolean loading;
     private String displayed = "";
+    private String released = "";
 
     WallpaperPlayer(Context context, FrameLayout root, Config config) {
         this.root = root;
@@ -88,12 +89,40 @@ final class WallpaperPlayer {
 
     /** Whether a picture is on screen (a wallpaper is configured and one of its images decoded). */
     boolean showing() {
-        return image.getDrawable() != null;
+        return image.getDrawable() != null || !released.isEmpty();
     }
 
     void start() {
         active = true;
+        restoreReleased();
         update();
+    }
+
+    void releaseBitmap() {
+        if (image.getDrawable() == null) return;
+
+        image.setImageDrawable(null);
+        released = displayed;
+        displayed = "";
+    }
+
+    private void restoreReleased() {
+        if (released.isEmpty()) return;
+
+        File file = WallpaperRotation.find(files, released);
+        released = "";
+        if (file == null || rotationDue()) return;
+
+        Bitmap bitmap = decode(file);
+        if (bitmap == null) return;
+
+        image.setImageBitmap(bitmap);
+        displayed = file.getName();
+    }
+
+    private boolean rotationDue() {
+        long changed = preferences.getLong("changed", 0);
+        return WallpaperRotation.due(changed, System.currentTimeMillis(), interval);
     }
 
     void stop() {

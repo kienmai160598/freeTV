@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="switcher_card_width">264dp</dimen>
+    <dimen name="switcher_card_margin">8dp</dimen>
+    <dimen name="switcher_cards_height">250dp</dimen>
+</resources>

@@ -1,0 +1,15 @@
+{
+  "dock_apps": [
+    "com.toptech.tvmenu",
+    "com.google.android.youtube.tv",
+    "com.amazon.amazonvideo.livingroom",
+    "com.android.tv.settings"
+  ],
+  "hidden_apps": [
+    "cn.zeasn.launcher.vstoresubclient.toptech"
+  ],
+  "live_tv_package": "",
+  "source_panel_service": "com.toptech.tvmenu/.input.InputActivity",
+  "app_library": true,
+  "columns": 4
+}

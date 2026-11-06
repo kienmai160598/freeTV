@@ -1,0 +1,4 @@
+{
+  "source_panel_service": "com.tcl.settings/.ShowWindowService",
+  "source_panel_action": "com.tcl.insrc.SHOW_WINDOW"
+}

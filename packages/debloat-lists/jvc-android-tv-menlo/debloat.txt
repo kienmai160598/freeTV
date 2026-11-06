@@ -1,0 +1,100 @@
+# JVC Android TV (Vestel-built, product BARTU_Jvc, device menlo, board BARTU, MediaTek mt5867), Android TV 11 (API 30),
+# firmware RTM7.230903.063. Fingerprint Jvc/BARTU_Jvc/menlo:11/RTM7.230903.063/11026774.
+# ro.product.manufacturer = My, ro.product.brand = Jvc, ro.product.model = "Android TV". Spain.
+# Same Vestel platform as packages/debloat-lists/cecotec-shandao (com.vestel.* services); Google part follows
+# packages/debloat-lists/panasonic-4ktv-0su.
+#
+# Second unit: Finlux (Norway), the same Vestel menlo board under the Finlux badge: product BARTU_Finlux,
+# ro.product.brand = Finlux, ro.product.manufacturer = vestel, ro.product.model = "Android TV", 1 GB RAM.
+# Cleaned on Android TV 11, firmware RTMA.250416.176, then took the official update V1.18.11 from Settings
+# to Android 14 (API 34), firmware UKNV.260914.002, fingerprint Finlux/BARTU_Finlux/menlo:14/UKNV.260914.002/16342942.
+# - The update turned every disabled package back on: run the Apply line again after a firmware update.
+# - The list applies as is on Android 14. Not installed there: com.google.android.onetimeinitializer and
+#   com.android.printspooler (gone in Android 14), com.google.android.videos, com.android.mgstv and
+#   com.tcl.browser (not preloaded on this unit); tvctl disable passes over them.
+# - Every uk.co.freeview.* package (16 on Android 14) already ships disabled.
+# - screencap works on this unit (Android 14), so scripts/tvctl screencap does too, unlike the JVC.
+# - setupwraith owns the saved Wi-Fi network here: keep it, as below.
+# - com.vestel.smartcenter and com.vestel.smartlogger are persistent apps: pm disable-user takes, but both
+#   kept running while disabled, so disabling them frees no memory (smartlogger is a comment below for that).
+# - com.cltv.fast (Live TVx) is on this unit: see its commented line below.
+# Finlux owner's choices: Prime Video off (commented line below); Disney+, Netflix, YouTube and Chromecast kept.
+# Status on the Finlux: the list (Prime Video included) on since 2026-10-23, on Android 14 since the same day.
+# Checked by the owner on the real remote on Android 14: new launcher as Home, Input key, HDMI switching,
+# composite input and Live TV all work; stable in daily use for twelve days, with a cold boot every night.
+#
+# Stock launcher:  com.google.android.tvlauncher (classic Android TV, not Google TV)
+# Live TV app:     com.mediatek.wwtv.tvcenter
+# Updates:         no separate firmware-update package on this firmware; updates live in Settings.
+#
+# Apply:   TV_HOST=<tv ip> scripts/tvctl disable packages/debloat-lists/jvc-android-tv-menlo/debloat.txt
+# Undo:    TV_HOST=<tv ip> scripts/tvctl restore packages/debloat-lists/jvc-android-tv-menlo/debloat.txt
+# Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
+#
+# KEEP, even though the names look like bloat (checked on this TV):
+# - fusion.android.tv.demo: unlike the Cecotec list, it must stay. On this firmware it receives
+#   com.mstar.android.intent.action.TV_INPUT_BUTTON (the remote's Input key), as on
+#   packages/debloat-lists/hitachi-65qledsm20 and packages/debloat-lists/eko-2k-google-tv-tennoji.
+# - com.mediatek.android.leanbacklauncher.partnercustomizer: crash-loops com.mediatek.tv.service
+#   after a reboot on MediaTek sets (see packages/debloat-lists/chiq-ai-pont).
+# - com.google.android.tungsten.setupwraith: may own the saved Wi-Fi network.
+# - every com.mediatek.*, mediatek.factorymenu.ui, com.vestel.tv.service / keycontroller / backlight /
+#   eib / rcupdater / websocketservice, com.vestel.overlay.*, com.dolby.android.audio.service.
+# - Chromecast built-in (mediashell), Play Store, Play Services, Gboard, TTS.
+#
+# Status: disabled in two batches on one TV on 2026-10-20 (the last two lines after launcher/ took Home),
+# then checked on the remote by the owner: new launcher as Home, Input key, HDMI input switching and
+# Live TV all work. Hours of real use, not days: treat it as a starting point.
+#
+# Quirks on this firmware:
+# - USB debugging alone opened port 5555 (no separate network-debugging switch, no restart needed).
+# - screencap fails (prints its usage) to /sdcard and /data/local/tmp alike: no screenshots over ADB.
+# - TalkBack (com.google.android.marvin.talkback) ships disabled; not listed, so restore leaves it off.
+# - ro.adb.secure = 1: port 5555 still shows the "Allow" prompt.
+
+# Vestel telemetry and "cleaner"
+com.vestel.vestelreporter                        # Vestel reporter: INTERNET + BOOT_COMPLETED, no UI
+com.vestel.tv.speedup                            # "speed up" cleaner
+com.vestel.smartcenter                           # no UI, holds GET_TASKS (sees which apps you run) + INTERNET
+# com.vestel.smartlogger                         # Finlux: Vestel logger, no UI, BOOT_COMPLETED. Persistent:
+                                                 # it kept running while disabled, so disabling gains nothing.
+
+# Ad-funded FAST channels (left on, as in other shared lists: TV middleware)
+# com.cltv.fast                                  # Finlux: "Live TVx" by iWedia, its own TvInputService, not
+                                                 # the tuner. On Android 14 it came back enabled once after a
+                                                 # reboot while disabled (cause not found), as firmware does on
+                                                 # packages/debloat-lists/anker-nebula-d2426.
+
+# Google/partner attribution, feedback, auto-installs, setup leftovers
+com.google.android.partnersetup                  # partner/OEM attribution
+com.google.android.feedback                      # Google feedback reporter
+com.google.android.onetimeinitializer
+android.autoinstalls.config.vestel.coma          # Vestel auto-install stub (preloads apps at setup)
+com.mstar.android.tv.disclaimercustomization     # disclaimer screen used only by first-run setup
+
+# Preloaded apps (off by choice, per the owner; Prime Video and Disney+ kept)
+com.google.android.youtube.tvmusic               # YouTube Music
+com.google.android.videos                        # Play Movies & TV
+com.google.android.play.games                    # Play Games
+com.google.android.katniss                       # Google Assistant / voice search
+com.android.mgstv                                # Mango TV, preinstalled as a user app (Taobao ACCS push + Firebase)
+com.tcl.browser                                  # TCL Browser, preinstalled as a user app
+# com.amazon.amazonvideo.livingroom              # Prime Video: kept on the JVC, off by choice on the Finlux
+
+# Background services nobody needs on a TV
+com.android.printspooler
+com.android.backupconfirm
+com.android.sharedstoragebackup
+com.android.wallpaperbackup
+com.google.android.syncadapters.calendar
+com.android.providers.calendar
+com.android.dynsystem                            # Dynamic System Updates
+com.android.cts.ctsshim                          # Android test shim
+com.android.cts.priv.ctsshim                     # Android test shim
+
+# Only safe once com.gathin.tvhome owns Home and com.google.android.tvlauncher is disabled
+com.google.android.tvrecommendations             # launcher recommendation rows
+com.google.android.backdrop                      # ambient-mode screensaver; the launcher's Clock screensaver replaces it
+
+# Stock launcher, replaced by apps/launcher/
+# com.google.android.tvlauncher   # apps/launcher/build-and-install.sh disables the stock launcher itself, after Home has moved

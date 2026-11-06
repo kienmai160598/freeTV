@@ -1,23 +1,19 @@
 package com.gathin.tvhome;
 
-import android.animation.ObjectAnimator;
 import android.animation.TimeAnimator;
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.view.View;
-import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Interpolator;
-import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 
 import androidx.dynamicanimation.animation.FloatPropertyCompat;
 import androidx.dynamicanimation.animation.SpringAnimation;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * The home screen's background without a wallpaper: the scheme's surface with Material 3 Expressive
@@ -39,7 +35,7 @@ final class ExpressiveBackdrop extends FrameLayout {
     private static final float BREATH = 1.03f;
 
     private final ShapeView cookie, clover;
-    private final List<ValueAnimator> motion = new ArrayList<>();
+    private TimeAnimator ticker;
     private final boolean animate;
     /** How far the grid has scrolled, and how much of it each shape follows. */
     private float scrolled;
@@ -51,9 +47,13 @@ final class ExpressiveBackdrop extends FrameLayout {
      */
     private static final float COOKIE_REACH_X = 0.26f, COOKIE_REACH_Y = 0.10f, CLOVER_REACH_X = 0.26f, CLOVER_REACH_Y = 0.12f;
     private static final float COOKIE_PERIOD_X_S = 47f, COOKIE_PERIOD_Y_S = 31f, CLOVER_PERIOD_X_S = 59f, CLOVER_PERIOD_Y_S = 37f;
-    /** Wander time so far; kept across stop and start so the shapes carry on from where they were. */
-    private long wanderMs;
-    private TimeAnimator wander;
+    /**
+     * The ambient clock every backdrop shares: the whole pose (wander, turn, breath, morph) follows
+     * from it, so a screen over Home shows Home's shapes and they fade into each other.
+     */
+    private static long clockMs;
+    private static float homeCookieParallax, homeCloverParallax;
+    private static final Set<ExpressiveBackdrop> ATTACHED = new HashSet<>();
 
     private static final Form[] COOKIE_FORMS = {
             new Form(9, 0.06f, 12f), new Form(12, 0.05f, 0f),
@@ -75,6 +75,8 @@ final class ExpressiveBackdrop extends FrameLayout {
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         cookie = new ShapeView(context, COOKIE_FORMS);
         clover = new ShapeView(context, CLOVER_FORMS);
+        cookie.setVisibility(INVISIBLE);
+        clover.setVisibility(INVISIBLE);
         addView(cookie);
         addView(clover);
         cookieParallax = Motion.DEFAULT_SPATIAL.reduced(reducedMotion)
@@ -101,6 +103,9 @@ final class ExpressiveBackdrop extends FrameLayout {
             place(cookie, w * 0.66f, Math.max(headerLine + cookieR, h * 0.80f), cookieR);
             float cloverR = h * 0.24f;
             place(clover, w * 0.30f, h - cloverR * 0.35f, cloverR);
+            applyPose();
+            cookie.setVisibility(VISIBLE);
+            clover.setVisibility(VISIBLE);
         });
     }
 
@@ -123,6 +128,8 @@ final class ExpressiveBackdrop extends FrameLayout {
      */
     void onGridScrolled(int dy) {
         scrolled += dy;
+        homeCookieParallax = -scrolled * COOKIE_DEPTH;
+        homeCloverParallax = -scrolled * CLOVER_DEPTH;
         if (!animate) {
             cookie.setParallax(-scrolled * COOKIE_DEPTH);
             clover.setParallax(-scrolled * CLOVER_DEPTH);
@@ -134,22 +141,46 @@ final class ExpressiveBackdrop extends FrameLayout {
 
     /** Starts the ambient motion (Home visible). */
     void start() {
-        if (!animate || !motion.isEmpty()) return;
-        motion.add(turn(cookie, COOKIE_TURN_MS, 1f));
-        motion.add(turn(clover, CLOVER_TURN_MS, -1f));
-        motion.add(breathe(cookie, 0));
-        motion.add(breathe(clover, BREATH_MS / 2));
-        long base = wanderMs;
-        wander = new TimeAnimator();
-        wander.setTimeListener((animation, totalMs, deltaMs) -> {
-            wanderMs = base + totalMs;
-            float s = wanderMs / 1000f, w = getWidth(), h = getHeight();
-            cookie.setWander(wave(s, COOKIE_PERIOD_X_S, 0f) * COOKIE_REACH_X * w, wave(s, COOKIE_PERIOD_Y_S, 0.3f) * COOKIE_REACH_Y * h);
-            clover.setWander(wave(s, CLOVER_PERIOD_X_S, 0.6f) * CLOVER_REACH_X * w, wave(s, CLOVER_PERIOD_Y_S, 0.1f) * CLOVER_REACH_Y * h);
-            if (morph) morphBoth(wanderMs);
+        if (!animate || ticker != null) return;
+        long base = clockMs;
+        ticker = new TimeAnimator();
+        ticker.setTimeListener((animation, totalMs, deltaMs) -> {
+            clockMs = base + totalMs;
+            applyPose();
         });
-        wander.start();
-        motion.add(wander);
+        ticker.start();
+    }
+
+    void matchHomeParallax() {
+        cookie.setParallax(homeCookieParallax);
+        clover.setParallax(homeCloverParallax);
+    }
+
+    private void applyPose() {
+        if (!animate) return;
+        float s = clockMs / 1000f, w = getWidth(), h = getHeight();
+        cookie.setWander(wave(s, COOKIE_PERIOD_X_S, 0f) * COOKIE_REACH_X * w,
+                wave(s, COOKIE_PERIOD_Y_S, 0.3f) * COOKIE_REACH_Y * h);
+        clover.setWander(wave(s, CLOVER_PERIOD_X_S, 0.6f) * CLOVER_REACH_X * w,
+                wave(s, CLOVER_PERIOD_Y_S, 0.1f) * CLOVER_REACH_Y * h);
+        cookie.setRotation(turn(clockMs, COOKIE_TURN_MS));
+        clover.setRotation(-turn(clockMs, CLOVER_TURN_MS));
+        breathe(cookie, clockMs);
+        breathe(clover, clockMs + BREATH_MS / 2);
+        if (morph) morphBoth(clockMs);
+    }
+
+    private static float turn(long ms, long turnMs) {
+        return 360f * (ms % turnMs) / turnMs;
+    }
+
+    private static void breathe(View shape, long ms) {
+        float phase = (ms % (2 * BREATH_MS)) / (float) BREATH_MS;
+        float swell = phase <= 1f ? phase : 2f - phase;
+        float eased = (float) (Math.cos((swell + 1) * Math.PI) / 2 + 0.5);
+        float scale = 1f + (BREATH - 1f) * eased;
+        shape.setScaleX(scale);
+        shape.setScaleY(scale);
     }
 
     private void morphBoth(long ms) {
@@ -172,36 +203,25 @@ final class ExpressiveBackdrop extends FrameLayout {
         return (float) Math.sin(2 * Math.PI * (seconds / periodS + phase));
     }
 
-    /** Stops it (Home hidden), leaving the shapes where they are. */
+    /** Stops it (Home hidden), leaving the shapes where they are; still backdrops catch up. */
     void stop() {
-        for (ValueAnimator a : motion) a.cancel();
-        motion.clear();
+        if (ticker != null) ticker.cancel();
+        ticker = null;
+        for (ExpressiveBackdrop other : ATTACHED) {
+            if (other != this && other.ticker == null) other.applyPose();
+        }
     }
 
-    private static ValueAnimator turn(View v, long ms, float direction) {
-        float from = v.getRotation();
-        ObjectAnimator a = ObjectAnimator.ofFloat(v, View.ROTATION, from, from + 360f * direction);
-        a.setDuration(ms);
-        a.setRepeatCount(ValueAnimator.INFINITE);
-        a.setInterpolator(new LinearInterpolator());
-        a.start();
-        return a;
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        ATTACHED.add(this);
     }
 
-    private static ValueAnimator breathe(View v, long delay) {
-        ValueAnimator a = ValueAnimator.ofFloat(1f, BREATH);
-        a.setDuration(BREATH_MS);
-        a.setStartDelay(delay);
-        a.setRepeatMode(ValueAnimator.REVERSE);
-        a.setRepeatCount(ValueAnimator.INFINITE);
-        a.setInterpolator(new AccelerateDecelerateInterpolator());
-        a.addUpdateListener(x -> {
-            float s = (float) x.getAnimatedValue();
-            v.setScaleX(s);
-            v.setScaleY(s);
-        });
-        a.start();
-        return a;
+    @Override
+    protected void onDetachedFromWindow() {
+        ATTACHED.remove(this);
+        super.onDetachedFromWindow();
     }
 
     /** One shape, drawn once into a hardware layer and moved only by transforms. */

@@ -15,7 +15,7 @@
 # Notes from this firmware:
 # - ADB: the Developer options switch is labelled "ADB debugging", not "USB debugging". Port 5555
 #   stays closed until it is on.
-# - com.google.android.tungsten.setupwraith is installed but did not take Home: build-and-install.ps1
+# - com.google.android.tungsten.setupwraith is installed but did not take Home: build-and-install.sh
 #   landed Home on com.gathin.tvhome first time with only com.google.android.tvlauncher disabled.
 #   Hide com.sony.dtv.tvx and com.sony.dtv.tvxlauncher.programguide in config.xml and leave
 #   live_tv_package empty if you have no antenna; Inputs lists HDMI 1-4 (with CEC names) and Video 1/2.

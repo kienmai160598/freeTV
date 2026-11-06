@@ -1,0 +1,12 @@
+{
+  "dock_apps": [
+    "no.nrk.tv",
+    "no.tv2.sumo",
+    "no.get.play.tv",
+    "com.android.tv.settings"
+  ],
+  "hidden_apps": [
+    "com.tcl.tv"
+  ],
+  "live_tv_package": "com.tcl.tv"
+}

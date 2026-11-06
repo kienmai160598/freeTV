@@ -1,5 +1,6 @@
 package com.gathin.tvhome;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
@@ -25,8 +26,14 @@ final class TvSettings {
         return new Intent(Settings.ACTION_SETTINGS);
     }
 
+    /** Xiaomi's global Mi TVs: DISPLAY_SETTINGS resolves to an empty stub in DroidTvSettings. */
+    private static final ComponentName XIAOMI_PICTURE = new ComponentName("com.android.tv.settings",
+            "com.xiaomi.mitv.settings.picture.PictureActivity");
+
     /** Picture settings, or the TV's Settings where they have no entry of their own (Xiaomi: Image settings). */
     static Intent picture(Context ctx) {
+        Intent xiaomi = new Intent().setComponent(XIAOMI_PICTURE);
+        if (xiaomi.resolveActivity(ctx.getPackageManager()) != null) return xiaomi;
         Intent i = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
         return i.resolveActivity(ctx.getPackageManager()) != null ? i : main(ctx);
     }

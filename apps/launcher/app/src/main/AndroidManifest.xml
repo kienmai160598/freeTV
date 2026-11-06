@@ -45,6 +45,8 @@
         </intent>
         <!-- China-market MIUI TV firmware: the Settings and Wi-Fi pills fall back to Xiaomi's settings app. -->
         <package android:name="com.xiaomi.mitv.settings" />
+        <!-- Global Mi TVs: Quick settings' Picture row opens Xiaomi's PictureActivity in here. -->
+        <package android:name="com.android.tv.settings" />
     </queries>
 
     <application
@@ -64,10 +66,15 @@
             android:clearTaskOnLaunch="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
             android:screenOrientation="landscape">
+            <!-- CVTE firmware (ro.CVT_EN_COMMON_HOME_INTENT=1) sends Home as MAIN + HOME + COMMON_HOME;
+                 ColorOS TV boots only a HOME that declares MODERN_HOME. One filter, so a plain HOME
+                 intent still matches and the activity is not listed twice. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.COMMON_HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="com.heytap.tv.launcher.category.MODERN_HOME" />
             </intent-filter>
             <!-- Listed in the TV's own app list, so it can be opened from the stock home screen too. -->
             <intent-filter>
@@ -80,7 +87,6 @@
             android:name=".LauncherSettingsActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:screenOrientation="landscape"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
         <!-- Remote Settings button panel (settings_key_panel); own task so the app behind stays put. -->
         <activity
@@ -90,28 +96,34 @@
             android:launchMode="singleTop"
             android:excludeFromRecents="true"
             android:noHistory="true"
-            android:screenOrientation="landscape"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
-        <!-- Running apps panel (running_apps_keycodes via InputKeyService); own task like the one above. -->
         <activity
             android:name=".RunningAppsActivity"
             android:exported="false"
             android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+        <!-- App switcher: hold Home, running_apps_keycodes, or a Running apps row; own task. -->
+        <activity
+            android:name=".AppSwitcherActivity"
+            android:exported="false"
+            android:taskAffinity=""
             android:launchMode="singleTop"
             android:excludeFromRecents="true"
-            android:screenOrientation="landscape"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
         <activity
             android:name=".HomeSettingsActivity"
             android:exported="false"
             android:taskAffinity=""
             android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.NoDisplay" />
+            android:theme="@style/Theme.TvHome" />
         <!-- Home button for remotes that send KEYCODE_ALL_APPS (Xiaomi). Opt-in: HOME_KEY_SERVICE=1
              build-and-install.sh; see HomeKeyService. -->
         <service
             android:name=".HomeKeyService"
             android:label="@string/home_key_name"
+            android:directBootAware="true"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>

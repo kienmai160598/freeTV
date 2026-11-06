@@ -49,6 +49,7 @@ func Install(dev tv.Device, apk string, opts Options, out, warn io.Writer) error
 
 	enableRequestedServices(dev, opts, out)
 	fmt.Fprintln(out, "Installed. Press Home on the remote to see it.")
+	fmt.Fprint(warn, tv.RebootDelayNotice)
 	return nil
 }
 
@@ -67,7 +68,7 @@ func installAPK(dev tv.Device, apk string, out io.Writer) error {
 }
 
 func startLauncher(dev tv.Device, out io.Writer) error {
-	answer, err := dev.Shell("am start -W -n " + tv.LauncherActivity)
+	answer, err := dev.Shell("am start -W " + tv.HomeIntent + " -n " + tv.LauncherActivity)
 	fmt.Fprint(out, answer)
 
 	started := err == nil && strings.Contains(answer, "Status: ok") && !hasErrorLine(answer)

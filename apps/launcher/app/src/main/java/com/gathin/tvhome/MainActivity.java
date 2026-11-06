@@ -51,6 +51,7 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Choreographer;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -83,6 +84,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -90,7 +92,6 @@ import java.util.Set;
  */
 public class MainActivity extends Activity implements AppAdapter.TileListener {
 
-    private static final int LAUNCHER_SETTINGS_REQUEST = 42;
     /** Sent by QuickSettingsActivity: open Launcher settings from here so Home rebuilds when they close. */
     static final String ACTION_LAUNCHER_SETTINGS = "com.gathin.tvhome.action.LAUNCHER_SETTINGS";
     /** InputKeyService on a TV without a system input switcher: Home with its Inputs menu open. */
@@ -109,12 +110,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             Palette.publish(Palette.fromBackground(Config.load(this).backgroundColor));
         } else if (HomeLook.BACKDROP_KEY.equals(key)) {
             applyBackdrop(HomeLook.backdrop(preferences));
+        } else if (isMotionChoice(key)) {
+            motionChoiceChanged = true;
         }
     };
+    private boolean motionChoiceChanged;
+
+    private static boolean isMotionChoice(String key) {
+        return Contract.Key.ANIMATIONS.equals(key) || Contract.Key.ADVANCED_EFFECTS.equals(key);
+    }
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
     private String liveTvPkg;
+    private boolean homeIgnoreChannelKeys;
     private String liveTvAction;
     private String inputAction;
     private String sourcePanelService;
@@ -130,6 +139,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private int scrimSolidPx;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
+    private ClockRefresh clockRefresh;
     private GlassView glass;
     private View ambient;
     private TextView heroName;
@@ -169,6 +179,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** config settings_key_keycodes / settings_key_panel, so the Settings button works on Home without HomeKeyService. */
     private int[] settingsKeycodes = new int[0];
     private boolean settingsKeyPanel;
+    private static final int FIRST_VENDOR_KEYCODE = 1000;
+    private Map<Integer, String> vendorAppKeys = Collections.emptyMap();
+    private boolean homeStarted;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     private boolean reducedMotion;
     /** config.xml dock_row: the first row is a separate dock (band, parked low, top shelf) rather than plain grid. */
@@ -320,12 +333,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         getWindow().setBackgroundDrawable(new ColorDrawable(Palette.currentOrBaseline().surface));
         Fonts.preload(this);
         setContentView(R.layout.activity_main);
+        clockRefresh = new ClockRefresh(findViewById(android.R.id.content));
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
         homeConfig = cfg;
+        if (cfg.restoreKeyServices) ServiceRepair.putBackMissing(this);
         settingsKeycodes = cfg.settingsKeycodes;
         settingsKeyPanel = cfg.settingsKeyPanel;
+        vendorAppKeys = RemoteKeys.parseAppKeys(cfg.appKeys);
         COLUMNS = cfg.columns;
         settingsPreferences = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         settingsPreferences.registerOnSharedPreferenceChangeListener(liveSettings);
@@ -336,6 +352,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         festival = cfg.festival;
         festive = festival.active(LocalDate.now());
         liveTvPkg = cfg.liveTvPackage;
+        homeIgnoreChannelKeys = cfg.homeIgnoreChannelKeys;
         liveTvAction = cfg.liveTvAction;
         inputAction = cfg.inputAction;
         sourcePanelService = cfg.sourcePanelService;
@@ -666,7 +683,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean openLauncherSettingsIfAsked(Intent intent) {
         if (intent == null || !ACTION_LAUNCHER_SETTINGS.equals(intent.getAction())) return false;
         setIntent(new Intent(Intent.ACTION_MAIN));
-        startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
+        startActivity(new Intent(this, LauncherSettingsActivity.class));
         return true;
     }
 
@@ -692,11 +709,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStart() {
         super.onStart();
+        homeStarted = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(packageReceiver, packageFilter);
         }
+        clockRefresh.start();
     }
 
     @Override
@@ -709,7 +728,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // The shapes start turning once the return transition is over, so they never compete with it.
         if (backdrop != null) handler.postDelayed(startBackdrop, BACKDROP_RESUME_DELAY_MS);
         // A festival that started or ended while Home was in the background: rebuild with or without it.
-        if (festive != festival.active(LocalDate.now())) {
+        if (festive != festival.active(LocalDate.now()) || motionChoiceChanged) {
             recreate();
             return;
         }
@@ -741,12 +760,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 handler.postDelayed(this::playPetalShower, 450);
             }
         }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK) recreate();
     }
 
     /** Rebuilds the tiles (and the module cards), then puts focus back where it was. */
@@ -972,9 +985,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStop() {
         super.onStop();
+        homeStarted = false;
         cameBackFromBackground = true;
         unregisterReceiver(packageReceiver);
+        clockRefresh.stop();
         rebuildOnResume = true;
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (MemoryTrimPolicy.shouldRelease(level, homeStarted)) wallpaperPlayer.releaseBitmap();
     }
 
     @Override
@@ -1027,6 +1048,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return false;
     }
 
+    private boolean handleVendorAppKey(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (keyCode < FIRST_VENDOR_KEYCODE) return false;
+
+        return RemoteKeys.handle(this, event, vendorAppKeys.get(keyCode));
+    }
+
     // ---- reorder ---------------------------------------------------------------------------------
 
     /**
@@ -1042,6 +1070,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) wakeBackdrop();
+        if (homeIgnoreChannelKeys && RemoteKeys.isChannelKey(event.getKeyCode())) return true;
+        if (handleVendorAppKey(event)) return true;
         if (handleSettingsKey(event)) return true;
         if (!reordering) return super.dispatchKeyEvent(event);
         if (widgets.handleEditKey(event, getCurrentFocus())) return true;
@@ -1860,17 +1890,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private CpuMeter cpuMeter = new CpuMeter();
 
     private long memAvailableMb() {
+        java.util.List<String> lines = new ArrayList<>();
         try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader("/proc/meminfo"))) {
-            String line;
-            while ((line = r.readLine()) != null) {
-                if (line.startsWith("MemAvailable:")) {
-                    String[] t = line.split("\\s+");
-                    return t.length >= 2 ? Long.parseLong(t[1]) / 1024 : -1;
-                }
-            }
-        } catch (IOException | NumberFormatException ignored) {
+            for (String line; (line = r.readLine()) != null; ) lines.add(line);
+        } catch (IOException ignored) {
+            return -1;
         }
-        return -1;
+        return MemInfo.availableMb(lines);
     }
 
     private static String formatGb(long bytes) {
@@ -2267,12 +2293,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  which the Live TV app handles; where nothing takes that, the configured `input_action` is sent
      *  with the same URI instead (XGIMI's HDMI player only answers com.xgimi.action.hdmiPlayer).
      *  Xiaomi's player goes first where it is installed: there a catch-all viewer (a file manager) would
-     *  take the ACTION_VIEW. */
+     *  take the ACTION_VIEW. An input_action naming an activity is started next, ahead of the
+     *  URI. */
     private void openInput(String inputId) {
         Intent xiaomi = xiaomiInput(inputId);
         if (xiaomi != null) {
             open(xiaomi);
             return;
+        }
+        if (InputAction.isComponent(inputAction)) {
+            try {
+                startActivity(InputAction.intent(inputAction)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (ActivityNotFoundException | SecurityException e) {
+                Log.w("TvHome.Inputs", "input_action " + inputAction
+                        + " did not start, trying the channel URI", e);
+            }
         }
         Uri uri = TvContract.buildChannelUriForPassthroughInput(inputId);
         Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
@@ -2286,7 +2323,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return;
             }
         }
-        open(new Intent(inputAction).setDataAndType(uri, "vnd.android.cursor.item/channel"));
+        open(InputAction.intent(inputAction)
+                .setDataAndType(uri, "vnd.android.cursor.item/channel"));
     }
 
     /** Xiaomi's player on this input, numbered by its port's label; null without the player or the number. */
@@ -2501,16 +2539,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // ---- launcher settings and module cards -------------------------------------------------------
 
     private void openLauncherSettings() {
-        startActivityForResult(new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
+        startActivity(new Intent(this, LauncherSettingsActivity.class));
     }
 
-    /** Hold OK on Settings: the launcher's menu (settings, module cards, dock and order editing). */
+    private void openRunningApps() {
+        startActivity(new Intent(this, AppSwitcherActivity.class));
+    }
+
+    /** Hold OK on Settings: the launcher's menu (settings, running apps, module cards, dock and order editing). */
     private void showSettingsMenu() {
         View anchor = findViewById(R.id.btnSettings);
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (200 * density));
         addSettingsMenuRow(rows, popup, R.string.launcher_settings, this::openLauncherSettings);
+        addSettingsMenuRow(rows, popup, R.string.running_apps, this::openRunningApps);
         if (moduleCards) addSettingsMenuRow(rows, popup, R.string.module_cards, this::showModuleCards);
         addSettingsMenuRow(rows, popup, reordering ? R.string.edit_home_done : R.string.edit_home, this::toggleReorder);
         skin(panel);

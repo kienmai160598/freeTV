@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -12,6 +13,8 @@ import (
 	"github.com/kienmai160598/freeTV/apps/tvctl/internal/contract"
 	"github.com/kienmai160598/freeTV/apps/tvctl/internal/tv"
 )
+
+var utf8BOM = []byte("\xef\xbb\xbf")
 
 var colorValue = regexp.MustCompile(`^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$`)
 
@@ -27,7 +30,7 @@ func checkConfig(data []byte) (configReport, error) {
 	}
 
 	var values map[string]any
-	if err := json.Unmarshal(data, &values); err != nil {
+	if err := json.Unmarshal(bytes.TrimPrefix(data, utf8BOM), &values); err != nil {
 		return configReport{}, fmt.Errorf("is not a JSON object: %v", err)
 	}
 

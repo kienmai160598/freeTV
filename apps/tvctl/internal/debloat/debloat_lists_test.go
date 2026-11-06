@@ -43,6 +43,9 @@ func TestEveryDebloatListIsValid(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if err := refuseCorePackages(path, names); err != nil {
+				t.Error(err)
+			}
 			seen := map[string]bool{}
 			for _, name := range names {
 				if seen[name] {

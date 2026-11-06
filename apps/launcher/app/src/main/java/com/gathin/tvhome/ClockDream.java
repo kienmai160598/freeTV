@@ -31,6 +31,7 @@ public class ClockDream extends DreamService {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
     private View content;
+    private ClockRefresh clockRefresh;
     private GradientDrawable glow;
     private int colorIndex;
     private int glowColor;
@@ -55,6 +56,7 @@ public class ClockDream extends DreamService {
         setContentView(R.layout.dream_clock);
 
         content = findViewById(R.id.dreamContent);
+        clockRefresh = new ClockRefresh(content);
         View ambient = findViewById(R.id.dreamAmbient);
         glow = new GradientDrawable();
         glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
@@ -116,12 +118,14 @@ public class ClockDream extends DreamService {
             content.animate().alpha(clockAlpha()).setDuration(1200).start();
         });
         if (shapes != null) shapes.start();
+        clockRefresh.start();
         handler.postDelayed(tick, MOVE_MS);
     }
 
     @Override
     public void onDreamingStopped() {
         handler.removeCallbacks(tick);
+        clockRefresh.stop();
         if (shapes != null) shapes.stop();
         super.onDreamingStopped();
     }
@@ -129,6 +133,7 @@ public class ClockDream extends DreamService {
     @Override
     public void onDetachedFromWindow() {
         handler.removeCallbacks(tick);
+        if (clockRefresh != null) clockRefresh.stop();
         if (shapes != null) shapes.stop();
         super.onDetachedFromWindow();
     }

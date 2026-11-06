@@ -94,9 +94,9 @@ final class LunarCalendar {
 
     static Date toLunar(LocalDate solar) {
         int dayNumber = jdFromDate(solar.getDayOfMonth(), solar.getMonthValue(), solar.getYear());
-        int k = (int) Math.floor((dayNumber - 2415021.076998695) / 29.530588853);
-        int monthStart = newMoonDay(k + 1);
-        if (monthStart > dayNumber) monthStart = newMoonDay(k);
+        int k = (int) Math.floor((dayNumber - 2415021.076998695) / 29.530588853) + 1;
+        int monthStart = newMoonDay(k);
+        while (monthStart > dayNumber) monthStart = newMoonDay(--k);
         int yy = solar.getYear();
         int a11 = lunarMonth11(yy), b11 = a11;
         int lunarYear;

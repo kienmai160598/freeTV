@@ -12,9 +12,10 @@ Locales: English and Vietnamese only.
 |---|---|
 | `.MainActivity` | Home: header, widget shelf, dock, grid, Inputs/network/settings pills |
 | `.LauncherSettingsActivity`, `.QuickSettingsActivity`, `.HomeSettingsActivity` | On-TV settings (side sheet), gear-key panel, default-home picker |
-| `.RunningAppsActivity` | Running apps side sheet: switch to or force-stop apps, through `LocalAdb` |
-| `.InputKeyService` | Accessibility: Input button (`KEYCODE_TV`, `KEYCODE_TV_INPUT`, `input_key_keycodes`, Menu if `menu_opens_inputs`), `app_keys`, `running_apps_keycodes`; no system switcher: Home's Inputs menu |
-| `.HomeKeyService` | Accessibility: Home that sends `KEYCODE_ALL_APPS`, `settings_key_*`, `app_keys`; stands in for Home where the firmware keeps it (Xiaomi CN): `KEYCODE_HOME` and any other HOME activity coming to the front (the stock launcher, or Settings' FallbackHome once the stock one is disabled) open this one, 300 ms after it settles |
+| `.AppSwitcherActivity` | App switcher (M3 Expressive cards over Home's backdrop): OK switches to an app, Up force-stops it, Stop all; through `LocalAdb`. Opened by holding Home, `running_apps_keycodes`, the gear-key panel, Launcher settings > System and Home's Settings menu (hold OK) |
+| `.RunningAppsActivity` | Kept for old shortcuts: opens `.AppSwitcherActivity` |
+| `.InputKeyService` | Accessibility: Input button (`KEYCODE_TV`, `KEYCODE_TV_INPUT`, `input_key_keycodes`, Menu if `menu_opens_inputs`), `app_keys`, `running_apps_keycodes`, held Home while `HomeKeyService` is not filtering; no system switcher: Home's Inputs menu |
+| `.HomeKeyService` | Accessibility: Home that sends `KEYCODE_ALL_APPS`, held Home (`HomeHold`), `settings_key_*`, `app_keys`; stands in for Home where the firmware keeps it (Xiaomi CN): `KEYCODE_HOME` and any other HOME activity coming to the front (the stock launcher, or Settings' FallbackHome once the stock one is disabled) open this one, 300 ms after it settles. `directBootAware` (Android 11 TCL skips other services at boot); it passes every key through until the user is unlocked |
 | `.ClockDream` | Clock screensaver; style from Launcher settings (shapes, glow, minimal, large) |
 | `.InstallStatusReceiver` | Not exported: the PackageInstaller session's result; shows the system confirm dialog |
 
@@ -26,14 +27,28 @@ Locales: English and Vietnamese only.
 - Home content: `HomeGrid` (full height; the header floats over its top `underlap()`, and rows scrolled under it fade into `headerScrim`), `AppAdapter`, `Order`, `DockSlots`, `DockDecoration`, `GridNavigation`, `LibraryApps`, `AppLibraryDialog`.
 - Widgets: `WidgetShelf`, `WidgetCard`, `Weather` and `AirQuality` (Open-Meteo; the place from ipwho.is or geojs.io), `CpuMeter` (cpuidle in sysfs, since `/proc/stat` is hidden; `/proc/uptime` without cpuidle; else `AdbCpuFeed`, /proc/stat through `LocalAdb` once the owner turns the CPU line on), `LunarCalendar`, `Shamsi`.
 - Network pill: `SpeedTest` (Cloudflare `speed.cloudflare.com`, only when asked from the Wi-Fi menu).
-- Running apps: `LocalAdb` (adb client to `127.0.0.1:5555` with its own key in `files/adbkey`; the TV asks once to allow it), `BackgroundApps` (`ps` and recent tasks, `am force-stop`). Port 5555 is gone after a reboot until `adb tcpip 5555` runs again.
+- Running apps: `LocalAdb` (adb client to `127.0.0.1:5555` with its own key in `files/adbkey`; the TV asks once to allow it), `BackgroundApps` (`ps` and recent tasks, `am force-stop`). Port 5555 is gone after a reboot until
+  `adb tcpip 5555` runs again. App switcher: `AppSwitcherActivity`, `SwitcherLoader` (one worker thread), `SwitcherEntry`,
+  `SwitcherAdapter`, `SwitcherCard` (focus springs, dismiss), `SwitcherHighlight` (Home's active indicator behind
+  the focused card), `SwitcherMotion` (enter, cards, exit), `HomeBackground` (Home's backdrop;
+  every `ExpressiveBackdrop` poses its shapes from one shared clock, and a stopping one brings
+  the still ones to its pose, so Home and the switcher fade into each other), `RoundedCorners`, `SwitcherLayoutManager` (keeps the
+  focused card centred), `AppBanner` (leanback banners, shared with `AppAdapter`), `HomeHold`.
 - Backgrounds: `WallpaperPlayer`, `WallpaperRotation`, `WallpaperSize`, `Sky`/`SkyView` (tinted by the
   weather widget's last report, which `WeatherShapes` draws in M3E shapes), `ExpressiveBackdrop`,
   `HomeLook` (the colour and backdrop chosen on the TV). Screensaver choices: `Screensaver`.
 - Festive skin: `Festival`, `DiyaDrawable`, `BellDrawable`, `MarigoldDrawable`, `PetalShowerView`.
 - Inputs on Xiaomi's China TVs: `XiaomiInputs` (their player's source numbers, from the port labels).
 - Config: `Config` reads `res/values/config.xml`, overlaid by `/sdcard/Android/data/com.gathin.tvhome/files/config.json` (a theme).
-- Module cards: `Cards`, `CardFeature`. Remote keys: `RemoteKeys`. VPN pill badge: `VpnBadge`.
+  A copy in `files/config.json` stands in while external storage is not mounted yet at boot.
+- Module cards: `Cards`, `CardFeature`. Remote keys: `RemoteKeys` (each press launches once, though
+  both services get it), `GamepadPassthrough`, `ServiceRepair`, `VolumeKeys`, `PowerOnHome`.
+  VPN pill badge: `VpnBadge`.
+- Clocks: `ClockRefresh` redraws Home's and the screensaver's TextClocks each minute and when the
+  display comes back on, below Android 12, where some firmware stops `ACTION_TIME_TICK` after standby.
+- Stats line: `MemInfo` (MemAvailable, or MemFree + Buffers + Cached on kernels before 3.14).
+- Memory: `MemoryTrimPolicy`; Home drops the wallpaper bitmap on `TRIM_MEMORY_BACKGROUND` and up (or
+  `RUNNING_LOW`/`CRITICAL`) while stopped, and decodes it again when it resumes.
 - Updates: `LauncherRelease` (GitHub `releases/latest` of kienmai160598/freeTV, checked once when
   Launcher settings opens), `ReleaseInstaller` (streams `km-launcher.apk` into a PackageInstaller
   session, checks the asset's SHA-256), `InstallStatusReceiver`. Needs the `REQUEST_INSTALL_PACKAGES`
@@ -51,9 +66,15 @@ Unknown or mistyped theme keys are ignored; a theme that does not parse is ignor
 |---|---|
 | `dock_apps`, `fill_dock`, `hidden_apps` | Dock order; fill free dock slots with grid apps; never-shown packages |
 | `columns` (1-8), `rows_below_dock` (0-3), `dock_row`, `dock_title`, `reorder_button` | Grid and dock layout |
-| `live_tv_package`, `live_tv_action`, `source_panel_service`, `source_panel_action`, `input_action` | Live TV and input switching on odd firmware |
-| `input_key_keycodes`, `app_keys` (`"190:pkg"`), `settings_key_keycodes`, `settings_key_scancodes`, `settings_key_panel` | Remote buttons for the key services |
-| `running_apps_keycodes` (`config.xml` only, not in the contract) | Buttons that open the running apps panel; 284 `KEYCODE_ALL_APPS`, 187 `KEYCODE_APP_SWITCH` |
+| `live_tv_package`, `live_tv_action`, `source_panel_service`, `source_panel_action`, `input_action` | Live TV and input switching on odd firmware; `input_action` as `"pkg/.Activity"` starts that source picker ahead of the channel URI (`InputAction`, Redmi X65) |
+| `input_key_keycodes`, `app_keys` (`"190:pkg"` or `"190:pkg/.Activity"`; keycodes from 1000 up, such as TCL's Netflix 4062, also work on Home itself), `settings_key_keycodes`, `settings_key_scancodes`, `settings_key_panel` | Remote buttons for the key services |
+| `key_filter` (on), `gamepad_passthrough` (off) | The key services filter keys at all (off: TCL Google TV 12 keeps key repeat, the buttons go dead); stop filtering while a game controller is connected (`GamepadPassthrough`) |
+| `restore_key_services` (off) | After a force stop, Home puts the key services that were running back on `enabled_accessibility_services` (`ServiceRepair`, needs `WRITE_SECURE_SETTINGS`): add, remove, add, a second apart, so Android drops its crashed mark; each write goes ahead only while the list still reads what the last step left |
+| `consume_volume_keys` (off) | With `key_filter` on, the key services swallow Volume Up/Down and repeat a held one themselves (`VolumeKeys`, 500 ms then every 60 ms), for firmware that applies a filtered volume key twice (TCL G03, Android 11) |
+| `power_on_home` (off) | With `key_filter` on, `HomeKeyService` sends a `live_tv_package` window back to Home until the first key in the 3 minutes after boot or the minute after screen-on (`PowerOnHome`), for firmware that opens Live TV at every power-on |
+| `home_hold_switcher` (on) | With `key_filter` on, holding Home (long-press timeout) opens the app switcher; a short press still goes Home. The service owns Home's down event, so the press reaches Android as a Home action |
+| `home_ignore_channel_keys` (off) | Channel Up/Down do nothing while Home is in front, instead of opening the TV's Live TV app (Sony BRAVIA, Android 9) |
+| `running_apps_keycodes` (`config.xml` only, not in the contract) | Buttons that open the app switcher; 284 `KEYCODE_ALL_APPS`, 187 `KEYCODE_APP_SWITCH` |
 | `animations`, `advanced_effects`, `reduced_motion` | Motion level; reduced for weak GPUs (MediaTek MT5895) |
 | `background_color`, `wallpaper`, `wallpaper_rotation_minutes` (0-1440), `wallpaper_dim` (0-90), `sky_intensity` (0-100) | Backdrop; seeds the colour scheme |
 | `widgets`, `weather_city`, `show_stats` | Widget shelf; empty city means locate by IP |
@@ -86,8 +107,9 @@ android:resource="@xml/...">` whose root is `<card spec="1" label="..." caption=
 - Inject keys and `screencap`; Live TV/HDMI/Netflix capture as empty images, press Home first.
 - Key services: enabled ≠ bound. Check `settings --user current get secure enabled_accessibility_services`
   and the Bound services section of `dumpsys accessibility`; `input keyevent` bypasses accessibility
-  filtering, so only the physical button proves the service. TCL may deny `APP_AUTO_START`
-  (`appops set com.gathin.tvhome APP_AUTO_START allow`).
+  filtering, so only the physical button proves the service. TCL's TclAppBoot refuses the services
+  without its auto-start op, named `AUTO_START` (G08, AU02) or `APP_AUTO_START` (G10): set both
+  (`appops set com.gathin.tvhome <op> allow`), then `appops write-settings`, or the next reboot drops it.
 - The network pill shows the SSID only with `ACCESS_FINE_LOCATION` granted (`tvctl install` grants it).
 
 Build and checks: `make check launcher` from the repo root.

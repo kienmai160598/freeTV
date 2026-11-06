@@ -1,0 +1,17 @@
+{
+  "dock_apps": [
+    "com.netflix.ninja",
+    "com.google.android.youtube.tv",
+    "com.amazon.amazonvideo.livingroom",
+    "com.disney.disneyplus",
+    "com.apple.atve.androidtv.appletv",
+    "com.wbd.stream"
+  ],
+  "columns": 6,
+  "rows_below_dock": 1,
+  "background_color": "#05070C",
+  "wallpaper": true,
+  "wallpaper_rotation_minutes": 60,
+  "dock_title": false,
+  "advanced_effects": true
+}

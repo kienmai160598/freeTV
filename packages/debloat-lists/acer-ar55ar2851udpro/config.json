@@ -1,0 +1,13 @@
+{
+  "dock_apps": [
+    "com.amazon.amazonvideo.livingroom",
+    "in.startv.hotstar",
+    "com.amazon.music.tv",
+    "com.netflix.ninja"
+  ],
+  "hidden_apps": [
+    "com.apps.livetv"
+  ],
+  "live_tv_package": "com.apps.livetv",
+  "columns": 6
+}

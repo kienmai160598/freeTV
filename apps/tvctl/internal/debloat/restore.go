@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
@@ -14,9 +13,26 @@ import (
 
 const listDisabledPackages = "pm list packages -d"
 
+const homeStaysWithLauncherNotice = "  Home goes back to %[1]s, which owned it when the " +
+	"record was taken: %[2]s was %[3]s then, so it stays as it is.\n" +
+	"  To have it back: scripts/tvctl shell 'pm enable %[2]s', then make it Home.\n"
+
+const homeLeftAloneNotice = "  leaving Home alone: none was recorded, and %s was %s when the " +
+	"record was taken\n"
+
 const otherRecordsExist = "no recovery record for this list at %s, " +
 	"but this TV has others:\n  %s\n" +
 	"pass the one taken for this list with --record"
+
+const sameListUnderOtherAddress = "a recovery record for this same list is under " +
+	"another address: %s\n"
+
+const sameListUnderOtherAddressAdvice = "If this is that TV on a new address (a new DHCP " +
+	"lease, or the Wi-Fi forget and re-join the setupwraith step asks for), stop and run\n" +
+	"  scripts/tvctl restore --record <that file> <list>\n" +
+	"instead: this run otherwise enables packages that were off before cleanup.\n" +
+	"If this is a second TV cleaned with the same list, nothing is wrong: that record is " +
+	"the other TV's.\n"
 
 func RestoreCommands(recordPath, listPath, stock string, warn io.Writer) ([]string, error) {
 	names, err := ReadList(listPath)
@@ -41,6 +57,15 @@ func RestoreCommands(recordPath, listPath, stock string, warn io.Writer) ([]stri
 	return commandsFromRecord(record, names, stock, warn), nil
 }
 
+func Restore(dev tv.Device, commands []string, out, warn io.Writer) error {
+	if err := tv.Batch(dev, commands, out); err != nil {
+		return err
+	}
+
+	fmt.Fprint(warn, tv.RebootDelayNotice)
+	return nil
+}
+
 func validStockLauncher(stock string) (string, error) {
 	if stock == "" {
 		return tv.StockLauncher, nil
@@ -56,11 +81,7 @@ func validStockLauncher(stock string) (string, error) {
 func commandsFromRecord(record *Record, names []string, stock string, warn io.Writer) []string {
 	enabled := packagesToEnable(record, warn)
 	commands := enableCommands(enabled)
-	if record.Packages[stock] != stateDisabled && !slices.Contains(enabled, stock) {
-		commands = append(commands, "pm enable "+stock)
-	}
-
-	commands = append(commands, homeCommand(record, stock))
+	commands = append(commands, homeCommands(record, stock, warn)...)
 	commands = append(commands, animationScaleCommands(record, warn)...)
 	if added := record.missing(names); len(added) > 0 {
 		fmt.Fprintf(warn, "not in the record, leaving alone: %s\n", strings.Join(added, ", "))
@@ -101,12 +122,32 @@ func enableCommands(names []string) []string {
 	return commands
 }
 
-func homeCommand(record *Record, stock string) string {
-	if record.Home != nil && tv.PackageOf(*record.Home) != tv.Launcher {
-		return "cmd package set-home-activity --user 0 " + *record.Home
+func homeCommands(record *Record, stock string, warn io.Writer) []string {
+	stockState := record.Packages[stock]
+	switch {
+	case record.Home != nil && tv.PackageOf(*record.Home) != tv.Launcher:
+		return []string{setRecordedHome(record)}
+	case record.Home != nil && stockState != stateEnabled:
+		fmt.Fprintf(warn, homeStaysWithLauncherNotice, *record.Home, stock, stateThen(stockState))
+		return []string{setRecordedHome(record)}
+	case record.Home == nil && (stockState == stateDisabled || stockState == stateAbsent):
+		fmt.Fprintf(warn, homeLeftAloneNotice, stock, stockState)
+		return nil
+	default:
+		return []string{tv.SetHomeTo(stock)}
+	}
+}
+
+func setRecordedHome(record *Record) string {
+	return "cmd package set-home-activity --user 0 " + *record.Home
+}
+
+func stateThen(state string) string {
+	if state == "" {
+		return "not in the record"
 	}
 
-	return tv.SetHomeTo(stock)
+	return state
 }
 
 func animationScaleCommands(record *Record, warn io.Writer) []string {
@@ -145,6 +186,7 @@ func commandsWithoutRecord(
 		return nil, fmt.Errorf(otherRecordsExist, recordPath, strings.Join(others, "\n  "))
 	}
 
+	warnAboutSameListUnderOtherAddresses(recordPath, warn)
 	fmt.Fprintf(warn, "no recovery record for this TV and list (%s).\n"+
 		"Enabling every listed package and resetting Home and the animation scales to their\n"+
 		"defaults. Packages that were already disabled before cleanup will be enabled too:\n"+
@@ -156,6 +198,31 @@ func commandsWithoutRecord(
 	}
 
 	return append(commands, listDisabledPackages), nil
+}
+
+func warnAboutSameListUnderOtherAddresses(recordPath string, warn io.Writer) {
+	others := sameListUnderOtherAddresses(recordPath)
+	for _, other := range others {
+		fmt.Fprintf(warn, sameListUnderOtherAddress, other)
+	}
+
+	if len(others) > 0 {
+		fmt.Fprint(warn, sameListUnderOtherAddressAdvice)
+	}
+}
+
+func sameListUnderOtherAddresses(recordPath string) []string {
+	fileName := filepath.Base(recordPath)
+	listSuffix := fileName[strings.LastIndex(fileName, "-"):]
+	matches, _ := filepath.Glob(filepath.Join(filepath.Dir(recordPath), "recovery-*"+listSuffix))
+	var others []string
+	for _, match := range matches {
+		if match != recordPath {
+			others = append(others, match)
+		}
+	}
+
+	return others
 }
 
 func otherRecordsForSameTV(recordPath string) []string {

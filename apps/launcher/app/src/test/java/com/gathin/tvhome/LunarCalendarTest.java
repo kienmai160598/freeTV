@@ -50,6 +50,41 @@ public class LunarCalendarTest {
     }
 
     @Test
+    public void dayBeforeANewMoonJustAfterMidnightIsTheThirtieth() {
+        assertLunar(LocalDate.of(2054, 5, 7), 30, 3, 2054);
+    }
+
+    @Test
+    public void everyDayFrom1900To2099IsDayOneToThirty() {
+        LocalDate end = LocalDate.of(2100, 1, 1);
+        for (LocalDate d = LocalDate.of(1900, 1, 1); d.isBefore(end); d = d.plusDays(1)) {
+            int day = LunarCalendar.toLunar(d).day;
+            assertTrue(d + " is day " + day, day >= 1 && day <= 30);
+        }
+    }
+
+    @Test
+    public void tet2023() {
+        assertLunar(LocalDate.of(2023, 1, 22), 1, 1, 2023);
+        assertLunar(LocalDate.of(2023, 1, 21), 30, 12, 2022);
+    }
+
+    @Test
+    public void leapSecondMonthOf2023StartsOn22March() {
+        assertLunar(LocalDate.of(2023, 2, 20), 1, 2, 2023);
+        assertFalse(LunarCalendar.toLunar(LocalDate.of(2023, 2, 20)).leap);
+        assertLunar(LocalDate.of(2023, 3, 21), 30, 2, 2023);
+        assertLunar(LocalDate.of(2023, 3, 22), 1, 2, 2023);
+        assertTrue(LunarCalendar.toLunar(LocalDate.of(2023, 3, 22)).leap);
+        assertLunar(LocalDate.of(2023, 4, 20), 1, 3, 2023);
+    }
+
+    @Test
+    public void tet2007InVietnam() {
+        assertLunar(LocalDate.of(2007, 2, 17), 1, 1, 2007);
+    }
+
+    @Test
     public void lunarToSolarRoundTrips() {
         for (LocalDate d = LocalDate.of(2024, 1, 1); d.isBefore(LocalDate.of(2028, 1, 1)); d = d.plusDays(1)) {
             LunarCalendar.Date l = LunarCalendar.toLunar(d);
