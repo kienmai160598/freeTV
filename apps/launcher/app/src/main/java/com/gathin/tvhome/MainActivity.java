@@ -2543,7 +2543,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void openRunningApps() {
-        startActivity(new Intent(this, RunningAppsActivity.class));
+        startActivity(new Intent(this, AppSwitcherActivity.class));
     }
 
     /** Hold OK on Settings: the launcher's menu (settings, running apps, module cards, dock and order editing). */

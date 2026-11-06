@@ -88,6 +88,7 @@ final class Config {
     final boolean powerOnHome;
     /** Channel Up/Down do nothing while Home is in front (home_ignore_channel_keys). */
     final boolean homeIgnoreChannelKeys;
+    final boolean homeHoldSwitcher;
     /** Whether themes may show a wallpaper (config.json, wallpaper). */
     final boolean wallpaperEnabled;
     /** Full-screen picture behind the launcher, or null for the plain colour. */
@@ -118,6 +119,7 @@ final class Config {
         this.consumeVolumeKeys = keyServices.consumeVolumeKeys;
         this.powerOnHome = keyServices.powerOnHome;
         this.homeIgnoreChannelKeys = keyServices.homeIgnoreChannelKeys;
+        this.homeHoldSwitcher = keyServices.homeHoldSwitcher;
         this.dockApps = Collections.unmodifiableList(dockApps);
         this.fillDock = fillDock;
         this.hiddenApps = Collections.unmodifiableList(hiddenApps);
@@ -196,6 +198,7 @@ final class Config {
         boolean consumeVolumeKeys = res.getBoolean(R.bool.consume_volume_keys);
         boolean powerOnHome = res.getBoolean(R.bool.power_on_home);
         boolean homeIgnoreChannelKeys = res.getBoolean(R.bool.home_ignore_channel_keys);
+        boolean homeHoldSwitcher = res.getBoolean(R.bool.home_hold_switcher);
         boolean applied = false;
 
         File dir = dir(ctx);
@@ -239,6 +242,7 @@ final class Config {
             consumeVolumeKeys = bool(json, Contract.Key.CONSUME_VOLUME_KEYS, consumeVolumeKeys);
             powerOnHome = bool(json, Contract.Key.POWER_ON_HOME, powerOnHome);
             homeIgnoreChannelKeys = bool(json, Contract.Key.HOME_IGNORE_CHANNEL_KEYS, homeIgnoreChannelKeys);
+            homeHoldSwitcher = bool(json, Contract.Key.HOME_HOLD_SWITCHER, homeHoldSwitcher);
         }
         // A theme push or reset invalidates choices made on the TV. On first use, remember the
         // current theme without clearing choices from an older launcher version.
@@ -272,7 +276,7 @@ final class Config {
                 wallpapers, rotationMinutes, wallpaperDim, applied,
                 festival, inputKeycodes, appKeys,
                 new KeyServices(keyFilter, gamepadPassthrough, restoreKeyServices,
-                        consumeVolumeKeys, powerOnHome, homeIgnoreChannelKeys));
+                        consumeVolumeKeys, powerOnHome, homeIgnoreChannelKeys, homeHoldSwitcher));
     }
 
     private static final class KeyServices {
@@ -282,15 +286,18 @@ final class Config {
         final boolean consumeVolumeKeys;
         final boolean powerOnHome;
         final boolean homeIgnoreChannelKeys;
+        final boolean homeHoldSwitcher;
 
         KeyServices(boolean keyFilter, boolean gamepadPassthrough, boolean restoreKeyServices,
-                boolean consumeVolumeKeys, boolean powerOnHome, boolean homeIgnoreChannelKeys) {
+                boolean consumeVolumeKeys, boolean powerOnHome, boolean homeIgnoreChannelKeys,
+                boolean homeHoldSwitcher) {
             this.keyFilter = keyFilter;
             this.gamepadPassthrough = gamepadPassthrough;
             this.restoreKeyServices = restoreKeyServices;
             this.consumeVolumeKeys = consumeVolumeKeys;
             this.powerOnHome = powerOnHome;
             this.homeIgnoreChannelKeys = homeIgnoreChannelKeys;
+            this.homeHoldSwitcher = homeHoldSwitcher;
         }
     }
 

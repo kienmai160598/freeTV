@@ -189,9 +189,11 @@
         <item quantity="other">%d ứng dụng</item>
     </plurals>
     <string name="running_summary">%1$s, đang dùng %2$s</string>
-    <string name="running_hint">OK để mở, giữ OK để dừng</string>
     <string name="running_on_screen">Đang xem, %s</string>
     <string name="running_stop_all">Dừng tất cả</string>
+    <string name="switcher_title">Ứng dụng gần đây</string>
+    <string name="switcher_hint">OK để mở, Lên để đóng</string>
+    <string name="switcher_stop_failed">Không dừng được ứng dụng</string>
     <string name="try_again">Thử lại</string>
     <string name="animations_desc">Tắt để focus chuyển ngay, nhẹ nhất cho TV yếu</string>
     <string name="widgets_desc">Thời tiết, chất lượng không khí, lịch âm và thông số máy</string>

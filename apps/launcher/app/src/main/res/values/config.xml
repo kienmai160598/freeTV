@@ -95,6 +95,10 @@
          and no key helper is needed. A theme can set it. -->
     <bool name="home_ignore_channel_keys">false</bool>
 
+    <!-- Holding Home opens the app switcher (AppSwitcherActivity) through whichever key service is
+         bound; a short press still goes Home. A theme can set it. -->
+    <bool name="home_hold_switcher">true</bool>
+
     <!-- For TVs whose firmware opens the Live TV app (live_tv_package) by itself at every power-on.
          With key_filter on, HomeKeyService sends a Live TV window back to Home until the first key
          press in the 3 minutes after boot or the minute after the screen turns on; the first key
@@ -108,9 +112,9 @@
          reach InputKeyService. Leave empty to omit. -->
     <integer-array name="input_key_keycodes">
     </integer-array>
-    <!-- Remote buttons that open the running apps panel (RunningAppsActivity, INPUT_KEY_SERVICE=1), by Android
+    <!-- Remote buttons that open the app switcher (AppSwitcherActivity, INPUT_KEY_SERVICE=1), by Android
          keycode: 284 KEYCODE_ALL_APPS (the Xiaomi remote layout gives it scancode 216) and 187 KEYCODE_APP_SWITCH.
-         The panel reads and stops apps through adb on port 5555 of the TV itself. Leave empty to omit. -->
+         The switcher reads and stops apps through adb on port 5555 of the TV itself. Leave empty to omit. -->
     <integer-array name="running_apps_keycodes">
         <item>284</item>
         <item>187</item>

@@ -35,6 +35,7 @@ public class InputKeyService extends AccessibilityService {
     private boolean notedForRepair;
     private boolean consumeVolumeKeys;
     private GamepadPassthrough gamepads;
+    private boolean homeHoldSwitcher;
 
     @Override
     protected void onServiceConnected() {
@@ -46,6 +47,7 @@ public class InputKeyService extends AccessibilityService {
         runningAppsKeycodes = getResources().getIntArray(R.array.running_apps_keycodes);
         notedForRepair = config.restoreKeyServices;
         consumeVolumeKeys = config.consumeVolumeKeys && config.keyFilter;
+        homeHoldSwitcher = config.homeHoldSwitcher && config.keyFilter;
         if (notedForRepair) ServiceRepair.noteRunning(this, getClass());
         RemoteKeys.stopFilteringUnless(this, config.keyFilter);
         if (gamepads == null) gamepads = GamepadPassthrough.startIfWanted(this, config);
@@ -62,6 +64,10 @@ public class InputKeyService extends AccessibilityService {
         if (gamepads != null) gamepads.stop();
         if (consumeVolumeKeys) VolumeKeys.stop();
         super.onDestroy();
+    }
+
+    private boolean ownsHomeHold(KeyEvent event) {
+        return homeHoldSwitcher && HomeHold.isHomeKey(event) && !HomeKeyService.ownsHomeHold();
     }
 
     private boolean isRunningAppsKey(int keyCode) {
@@ -83,11 +89,14 @@ public class InputKeyService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         if (isRunningAppsKey(event.getKeyCode())) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
-                startActivity(new Intent(this, RunningAppsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                HomeHold.openSwitcher(this);
             }
             return true;
         }
         if (consumeVolumeKeys && VolumeKeys.handle(this, event)) return true;
+        if (ownsHomeHold(event)) {
+            return HomeHold.handle(this, event, () -> performGlobalAction(GLOBAL_ACTION_HOME));
+        }
         if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()))) return true;
         if (!isInputKey(event.getKeyCode())) return false;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) openInputs();

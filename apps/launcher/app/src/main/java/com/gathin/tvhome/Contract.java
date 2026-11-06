@@ -62,6 +62,7 @@ final class Contract {
         static final String CONSUME_VOLUME_KEYS = "consume_volume_keys";
         static final String POWER_ON_HOME = "power_on_home";
         static final String HOME_IGNORE_CHANNEL_KEYS = "home_ignore_channel_keys";
+        static final String HOME_HOLD_SWITCHER = "home_hold_switcher";
         static final String WALLPAPER = "wallpaper";
         static final String WALLPAPER_ROTATION_MINUTES = "wallpaper_rotation_minutes";
         static final String WALLPAPER_DIM = "wallpaper_dim";

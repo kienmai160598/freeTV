@@ -1,11 +1,19 @@
 package com.gathin.tvhome;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.provider.Settings;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,6 +45,25 @@ final class BackgroundApps {
     private static final Pattern PACKAGE = Pattern.compile("[A-Za-z][\\w.]*");
 
     private BackgroundApps() {
+    }
+
+    private static final String[] LAUNCHER_CATEGORIES =
+            {Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER};
+
+    static Set<String> launchable(Context context) {
+        PackageManager pm = context.getPackageManager();
+        Set<String> packages = new HashSet<>();
+        for (String category : LAUNCHER_CATEGORIES) {
+            Intent main = new Intent(Intent.ACTION_MAIN).addCategory(category);
+            for (ResolveInfo resolved : pm.queryIntentActivities(main, 0)) {
+                packages.add(resolved.activityInfo.packageName);
+            }
+        }
+        packages.remove(context.getPackageName());
+        String ime = Settings.Secure.getString(
+                context.getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD);
+        if (ime != null) packages.remove(ime.split("/")[0]);
+        return packages;
     }
 
     static List<App> list(LocalAdb adb, Predicate<String> listed) throws IOException {

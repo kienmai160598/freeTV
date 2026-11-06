@@ -12,9 +12,10 @@ Locales: English and Vietnamese only.
 |---|---|
 | `.MainActivity` | Home: header, widget shelf, dock, grid, Inputs/network/settings pills |
 | `.LauncherSettingsActivity`, `.QuickSettingsActivity`, `.HomeSettingsActivity` | On-TV settings (side sheet), gear-key panel, default-home picker |
-| `.RunningAppsActivity` | Running apps side sheet: switch to or force-stop apps, through `LocalAdb`; opened by `running_apps_keycodes`, the gear-key panel, Launcher settings > System and Home's Settings menu (hold OK) |
-| `.InputKeyService` | Accessibility: Input button (`KEYCODE_TV`, `KEYCODE_TV_INPUT`, `input_key_keycodes`, Menu if `menu_opens_inputs`), `app_keys`, `running_apps_keycodes`; no system switcher: Home's Inputs menu |
-| `.HomeKeyService` | Accessibility: Home that sends `KEYCODE_ALL_APPS`, `settings_key_*`, `app_keys`; stands in for Home where the firmware keeps it (Xiaomi CN): `KEYCODE_HOME` and any other HOME activity coming to the front (the stock launcher, or Settings' FallbackHome once the stock one is disabled) open this one, 300 ms after it settles. `directBootAware` (Android 11 TCL skips other services at boot); it passes every key through until the user is unlocked |
+| `.AppSwitcherActivity` | App switcher (M3 Expressive cards over Home's backdrop): OK switches to an app, Up force-stops it, Stop all; through `LocalAdb`. Opened by holding Home, `running_apps_keycodes`, the gear-key panel, Launcher settings > System and Home's Settings menu (hold OK) |
+| `.RunningAppsActivity` | Kept for old shortcuts: opens `.AppSwitcherActivity` |
+| `.InputKeyService` | Accessibility: Input button (`KEYCODE_TV`, `KEYCODE_TV_INPUT`, `input_key_keycodes`, Menu if `menu_opens_inputs`), `app_keys`, `running_apps_keycodes`, held Home while `HomeKeyService` is not filtering; no system switcher: Home's Inputs menu |
+| `.HomeKeyService` | Accessibility: Home that sends `KEYCODE_ALL_APPS`, held Home (`HomeHold`), `settings_key_*`, `app_keys`; stands in for Home where the firmware keeps it (Xiaomi CN): `KEYCODE_HOME` and any other HOME activity coming to the front (the stock launcher, or Settings' FallbackHome once the stock one is disabled) open this one, 300 ms after it settles. `directBootAware` (Android 11 TCL skips other services at boot); it passes every key through until the user is unlocked |
 | `.ClockDream` | Clock screensaver; style from Launcher settings (shapes, glow, minimal, large) |
 | `.InstallStatusReceiver` | Not exported: the PackageInstaller session's result; shows the system confirm dialog |
 
@@ -26,7 +27,13 @@ Locales: English and Vietnamese only.
 - Home content: `HomeGrid` (full height; the header floats over its top `underlap()`, and rows scrolled under it fade into `headerScrim`), `AppAdapter`, `Order`, `DockSlots`, `DockDecoration`, `GridNavigation`, `LibraryApps`, `AppLibraryDialog`.
 - Widgets: `WidgetShelf`, `WidgetCard`, `Weather` and `AirQuality` (Open-Meteo; the place from ipwho.is or geojs.io), `CpuMeter` (cpuidle in sysfs, since `/proc/stat` is hidden; `/proc/uptime` without cpuidle; else `AdbCpuFeed`, /proc/stat through `LocalAdb` once the owner turns the CPU line on), `LunarCalendar`, `Shamsi`.
 - Network pill: `SpeedTest` (Cloudflare `speed.cloudflare.com`, only when asked from the Wi-Fi menu).
-- Running apps: `LocalAdb` (adb client to `127.0.0.1:5555` with its own key in `files/adbkey`; the TV asks once to allow it), `BackgroundApps` (`ps` and recent tasks, `am force-stop`). Port 5555 is gone after a reboot until `adb tcpip 5555` runs again.
+- Running apps: `LocalAdb` (adb client to `127.0.0.1:5555` with its own key in `files/adbkey`; the TV asks once to allow it), `BackgroundApps` (`ps` and recent tasks, `am force-stop`). Port 5555 is gone after a reboot until
+  `adb tcpip 5555` runs again. App switcher: `AppSwitcherActivity`, `SwitcherLoader` (one worker thread), `SwitcherEntry`,
+  `SwitcherAdapter`, `SwitcherCard` (focus springs, dismiss), `SwitcherHighlight` (Home's active indicator behind
+  the focused card), `SwitcherMotion` (enter, cards, exit), `HomeBackground` (Home's backdrop;
+  every `ExpressiveBackdrop` poses its shapes from one shared clock, and a stopping one brings
+  the still ones to its pose, so Home and the switcher fade into each other), `RoundedCorners`, `SwitcherLayoutManager` (keeps the
+  focused card centred), `AppBanner` (leanback banners, shared with `AppAdapter`), `HomeHold`.
 - Backgrounds: `WallpaperPlayer`, `WallpaperRotation`, `WallpaperSize`, `Sky`/`SkyView` (tinted by the
   weather widget's last report, which `WeatherShapes` draws in M3E shapes), `ExpressiveBackdrop`,
   `HomeLook` (the colour and backdrop chosen on the TV). Screensaver choices: `Screensaver`.
@@ -65,8 +72,9 @@ Unknown or mistyped theme keys are ignored; a theme that does not parse is ignor
 | `restore_key_services` (off) | After a force stop, Home puts the key services that were running back on `enabled_accessibility_services` (`ServiceRepair`, needs `WRITE_SECURE_SETTINGS`): add, remove, add, a second apart, so Android drops its crashed mark; each write goes ahead only while the list still reads what the last step left |
 | `consume_volume_keys` (off) | With `key_filter` on, the key services swallow Volume Up/Down and repeat a held one themselves (`VolumeKeys`, 500 ms then every 60 ms), for firmware that applies a filtered volume key twice (TCL G03, Android 11) |
 | `power_on_home` (off) | With `key_filter` on, `HomeKeyService` sends a `live_tv_package` window back to Home until the first key in the 3 minutes after boot or the minute after screen-on (`PowerOnHome`), for firmware that opens Live TV at every power-on |
+| `home_hold_switcher` (on) | With `key_filter` on, holding Home (long-press timeout) opens the app switcher; a short press still goes Home. The service owns Home's down event, so the press reaches Android as a Home action |
 | `home_ignore_channel_keys` (off) | Channel Up/Down do nothing while Home is in front, instead of opening the TV's Live TV app (Sony BRAVIA, Android 9) |
-| `running_apps_keycodes` (`config.xml` only, not in the contract) | Buttons that open the running apps panel; 284 `KEYCODE_ALL_APPS`, 187 `KEYCODE_APP_SWITCH` |
+| `running_apps_keycodes` (`config.xml` only, not in the contract) | Buttons that open the app switcher; 284 `KEYCODE_ALL_APPS`, 187 `KEYCODE_APP_SWITCH` |
 | `animations`, `advanced_effects`, `reduced_motion` | Motion level; reduced for weak GPUs (MediaTek MT5895) |
 | `background_color`, `wallpaper`, `wallpaper_rotation_minutes` (0-1440), `wallpaper_dim` (0-90), `sky_intensity` (0-100) | Backdrop; seeds the colour scheme |
 | `widgets`, `weather_city`, `show_stats` | Widget shelf; empty city means locate by IP |

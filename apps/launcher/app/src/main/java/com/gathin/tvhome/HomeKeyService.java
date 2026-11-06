@@ -60,6 +60,11 @@ public class HomeKeyService extends AccessibilityService {
     private PowerOnHome powerOnHome = new PowerOnHome("");
     private BroadcastReceiver screenOnWaiter;
     private GamepadPassthrough gamepads;
+    private static volatile boolean ownsHomeHold;
+
+    static boolean ownsHomeHold() {
+        return ownsHomeHold;
+    }
 
     @Override
     protected void onServiceConnected() {
@@ -114,6 +119,7 @@ public class HomeKeyService extends AccessibilityService {
         if (notedForRepair) ServiceRepair.noteRunning(this, getClass());
         RemoteKeys.stopFilteringUnless(this, config.keyFilter);
         if (gamepads == null) gamepads = GamepadPassthrough.startIfWanted(this, config);
+        ownsHomeHold = config.homeHoldSwitcher && config.keyFilter;
         configLoaded = true;
         if (SystemClock.elapsedRealtime() < JUST_BOOTED_MS) openHome();
     }
@@ -126,6 +132,7 @@ public class HomeKeyService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        ownsHomeHold = false;
         stopWaitingForUnlock();
         stopWaitingForScreenOn();
         if (consumeVolumeKeys) VolumeKeys.stop();
@@ -176,6 +183,9 @@ public class HomeKeyService extends AccessibilityService {
             return true;
         }
         if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()))) return true;
+        if (ownsHomeHold && HomeHold.isHomeKey(event)) {
+            return HomeHold.handle(this, event, this::goHome);
+        }
         boolean standsInForHome = standsInForHome() || stockHome() != null;
         boolean home = event.getKeyCode() == KeyEvent.KEYCODE_ALL_APPS
                 || (event.getKeyCode() == KeyEvent.KEYCODE_HOME && standsInForHome);
@@ -234,6 +244,11 @@ public class HomeKeyService extends AccessibilityService {
 
         getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
                 .putBoolean(STANDS_IN_FOR_HOME, true).apply();
+    }
+
+    private void goHome() {
+        if (standsInForHome() || stockHome() != null) openHome();
+        else performGlobalAction(GLOBAL_ACTION_HOME);
     }
 
     private void openHome() {

@@ -211,9 +211,11 @@
         <item quantity="other">%d apps</item>
     </plurals>
     <string name="running_summary">%1$s, %2$s in use</string>
-    <string name="running_hint">OK switches to it, hold OK stops it</string>
     <string name="running_on_screen">On screen, %s</string>
     <string name="running_stop_all">Stop all</string>
+    <string name="switcher_title">Recent apps</string>
+    <string name="switcher_hint">OK opens it, Up closes it</string>
+    <string name="switcher_stop_failed">Couldn\'t stop the app</string>
     <string name="try_again">Try again</string>
     <string name="animations_desc">Off moves focus instantly, lightest on slow TVs</string>
     <string name="widgets_desc">Weather, air quality, lunar date and system stats</string>

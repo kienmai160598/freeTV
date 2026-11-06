@@ -123,7 +123,7 @@ public final class LauncherSettingsActivity extends Activity {
         runningAppsChoice.setCompoundDrawablesRelativeWithIntrinsicBounds(icon(R.drawable.ic_memory),
                 null, null, null);
         runningAppsChoice.setOnClickListener(
-                v -> open(new Intent(this, RunningAppsActivity.class)));
+                v -> open(new Intent(this, AppSwitcherActivity.class)));
         TextView rebootChoice = findViewById(R.id.rebootChoice);
         rebootChoice.setText(item(getString(R.string.reboot), getString(R.string.reboot_desc)));
         rebootChoice.setCompoundDrawablesRelativeWithIntrinsicBounds(icon(R.drawable.ic_power), null, null, null);
