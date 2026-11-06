@@ -51,6 +51,7 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Choreographer;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -122,6 +123,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
     private String liveTvPkg;
+    private boolean homeIgnoreChannelKeys;
     private String liveTvAction;
     private String inputAction;
     private String sourcePanelService;
@@ -137,6 +139,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private int scrimSolidPx;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
+    private ClockRefresh clockRefresh;
     private GlassView glass;
     private View ambient;
     private TextView heroName;
@@ -330,6 +333,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         getWindow().setBackgroundDrawable(new ColorDrawable(Palette.currentOrBaseline().surface));
         Fonts.preload(this);
         setContentView(R.layout.activity_main);
+        clockRefresh = new ClockRefresh(findViewById(android.R.id.content));
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
@@ -348,6 +352,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         festival = cfg.festival;
         festive = festival.active(LocalDate.now());
         liveTvPkg = cfg.liveTvPackage;
+        homeIgnoreChannelKeys = cfg.homeIgnoreChannelKeys;
         liveTvAction = cfg.liveTvAction;
         inputAction = cfg.inputAction;
         sourcePanelService = cfg.sourcePanelService;
@@ -710,6 +715,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else {
             registerReceiver(packageReceiver, packageFilter);
         }
+        clockRefresh.start();
     }
 
     @Override
@@ -982,6 +988,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         homeStarted = false;
         cameBackFromBackground = true;
         unregisterReceiver(packageReceiver);
+        clockRefresh.stop();
         rebuildOnResume = true;
     }
 
@@ -1063,6 +1070,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) wakeBackdrop();
+        if (homeIgnoreChannelKeys && RemoteKeys.isChannelKey(event.getKeyCode())) return true;
         if (handleVendorAppKey(event)) return true;
         if (handleSettingsKey(event)) return true;
         if (!reordering) return super.dispatchKeyEvent(event);
@@ -1882,17 +1890,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private CpuMeter cpuMeter = new CpuMeter();
 
     private long memAvailableMb() {
+        java.util.List<String> lines = new ArrayList<>();
         try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader("/proc/meminfo"))) {
-            String line;
-            while ((line = r.readLine()) != null) {
-                if (line.startsWith("MemAvailable:")) {
-                    String[] t = line.split("\\s+");
-                    return t.length >= 2 ? Long.parseLong(t[1]) / 1024 : -1;
-                }
-            }
-        } catch (IOException | NumberFormatException ignored) {
+            for (String line; (line = r.readLine()) != null; ) lines.add(line);
+        } catch (IOException ignored) {
+            return -1;
         }
-        return -1;
+        return MemInfo.availableMb(lines);
     }
 
     private static String formatGb(long bytes) {
@@ -2289,12 +2293,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  which the Live TV app handles; where nothing takes that, the configured `input_action` is sent
      *  with the same URI instead (XGIMI's HDMI player only answers com.xgimi.action.hdmiPlayer).
      *  Xiaomi's player goes first where it is installed: there a catch-all viewer (a file manager) would
-     *  take the ACTION_VIEW. */
+     *  take the ACTION_VIEW. An input_action naming an activity is started next, ahead of the
+     *  URI. */
     private void openInput(String inputId) {
         Intent xiaomi = xiaomiInput(inputId);
         if (xiaomi != null) {
             open(xiaomi);
             return;
+        }
+        if (InputAction.isComponent(inputAction)) {
+            try {
+                startActivity(InputAction.intent(inputAction)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (ActivityNotFoundException | SecurityException e) {
+                Log.w("TvHome.Inputs", "input_action " + inputAction
+                        + " did not start, trying the channel URI", e);
+            }
         }
         Uri uri = TvContract.buildChannelUriForPassthroughInput(inputId);
         Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "vnd.android.cursor.item/channel")
@@ -2308,7 +2323,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return;
             }
         }
-        open(new Intent(inputAction).setDataAndType(uri, "vnd.android.cursor.item/channel"));
+        open(InputAction.intent(inputAction)
+                .setDataAndType(uri, "vnd.android.cursor.item/channel"));
     }
 
     /** Xiaomi's player on this input, numbered by its port's label; null without the player or the number. */

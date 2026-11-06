@@ -217,7 +217,7 @@ public final class LauncherSettingsActivity extends Activity {
         home.setText(item(getString(R.string.about_default),
                 getString(isDefault ? R.string.about_default_yes : R.string.about_default_no)));
         home.setCompoundDrawablesRelativeWithIntrinsicBounds(icon(R.drawable.ic_home), null, null, null);
-        home.setOnClickListener(v -> open(new Intent(Settings.ACTION_HOME_SETTINGS)));
+        home.setOnClickListener(v -> open(new Intent(this, HomeSettingsActivity.class)));
 
         TextView stock = findViewById(R.id.stockInfo);
         int setting;
