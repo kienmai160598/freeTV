@@ -24,6 +24,16 @@ const otherRecordsExist = "no recovery record for this list at %s, " +
 	"but this TV has others:\n  %s\n" +
 	"pass the one taken for this list with --record"
 
+const sameListUnderOtherAddress = "a recovery record for this same list is under " +
+	"another address: %s\n"
+
+const sameListUnderOtherAddressAdvice = "If this is that TV on a new address (a new DHCP " +
+	"lease, or the Wi-Fi forget and re-join the setupwraith step asks for), stop and run\n" +
+	"  scripts/tvctl restore --record <that file> <list>\n" +
+	"instead: this run otherwise enables packages that were off before cleanup.\n" +
+	"If this is a second TV cleaned with the same list, nothing is wrong: that record is " +
+	"the other TV's.\n"
+
 func RestoreCommands(recordPath, listPath, stock string, warn io.Writer) ([]string, error) {
 	names, err := ReadList(listPath)
 	if err != nil {
@@ -176,6 +186,7 @@ func commandsWithoutRecord(
 		return nil, fmt.Errorf(otherRecordsExist, recordPath, strings.Join(others, "\n  "))
 	}
 
+	warnAboutSameListUnderOtherAddresses(recordPath, warn)
 	fmt.Fprintf(warn, "no recovery record for this TV and list (%s).\n"+
 		"Enabling every listed package and resetting Home and the animation scales to their\n"+
 		"defaults. Packages that were already disabled before cleanup will be enabled too:\n"+
@@ -187,6 +198,31 @@ func commandsWithoutRecord(
 	}
 
 	return append(commands, listDisabledPackages), nil
+}
+
+func warnAboutSameListUnderOtherAddresses(recordPath string, warn io.Writer) {
+	others := sameListUnderOtherAddresses(recordPath)
+	for _, other := range others {
+		fmt.Fprintf(warn, sameListUnderOtherAddress, other)
+	}
+
+	if len(others) > 0 {
+		fmt.Fprint(warn, sameListUnderOtherAddressAdvice)
+	}
+}
+
+func sameListUnderOtherAddresses(recordPath string) []string {
+	fileName := filepath.Base(recordPath)
+	listSuffix := fileName[strings.LastIndex(fileName, "-"):]
+	matches, _ := filepath.Glob(filepath.Join(filepath.Dir(recordPath), "recovery-*"+listSuffix))
+	var others []string
+	for _, match := range matches {
+		if match != recordPath {
+			others = append(others, match)
+		}
+	}
+
+	return others
 }
 
 func otherRecordsForSameTV(recordPath string) []string {

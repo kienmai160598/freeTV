@@ -37,6 +37,7 @@ type fakeTV struct {
 	secureFails bool
 	settings    map[string]string
 	unreachable bool
+	dropsOn     string
 }
 
 func newTV() *fakeTV {
@@ -66,7 +67,7 @@ func packageLines(names []string) string {
 
 func (f *fakeTV) device() *tvtest.Fake {
 	return &tvtest.Fake{Answer: func(command string) (string, error) {
-		if f.unreachable {
+		if f.unreachable || (f.dropsOn != "" && command == f.dropsOn) {
 			return "", tvtest.ErrLinkLost
 		}
 		switch {
@@ -354,6 +355,19 @@ func TestValidRecordRestoresTheSameBatch(t *testing.T) {
 
 	if !slices.Equal(r.sent, want) {
 		t.Errorf("batch\n got %q\nwant %q", r.sent, want)
+	}
+}
+
+func TestRestoreAtANewAddressNamesTheRecordUnderTheOldOne(t *testing.T) {
+	w := newWorld(t)
+	must(t, w.disable(newTV(), DisableOptions{}))
+	oldRecord := w.record
+	w.record = RecordPath(w.home, w.list, "192.168.1.77")
+	r := w.restore(newTV())
+	must(t, r)
+	if !strings.Contains(r.warn, "same list is under another address: "+oldRecord) ||
+		!strings.Contains(r.warn, "--record <that file>") {
+		t.Errorf("warnings:\n%s", r.warn)
 	}
 }
 
@@ -923,6 +937,28 @@ func TestADryRunRestoreDoesNotAskForAWait(t *testing.T) {
 
 	if strings.Contains(warn.String(), tv.RebootDelayNotice) {
 		t.Errorf("nothing reached the TV, yet: %s", warn.String())
+	}
+}
+
+func TestABatchThatDiesMidListSaysSoAndStillWarnsAboutADB(t *testing.T) {
+	w := newWorld(t, "com.example.enabled", "com.example.second")
+	f := newTV()
+	f.adbSecure = "0"
+	f.dropsOn = "pm disable-user --user 0 com.example.enabled"
+	r := w.disable(f, DisableOptions{ForceHome: true, ForceSetupWizard: true})
+	if r.err == nil || !errors.Is(r.err, tvtest.ErrLinkLost) ||
+		!strings.Contains(r.err.Error(), "stopped before the end of the list") {
+		t.Fatalf("err = %v", r.err)
+	}
+
+	if slices.Contains(r.sent, "pm disable-user --user 0 com.example.second") {
+		t.Errorf("sent past the dropped command: %v", r.sent)
+	}
+	if !strings.Contains(r.warn, "ro.adb.secure=0") {
+		t.Errorf("no ADB warning after the failed batch:\n%s", r.warn)
+	}
+	if strings.Contains(r.warn, tv.RebootDelayNotice) {
+		t.Errorf("asked for a wait after a failed batch:\n%s", r.warn)
 	}
 }
 

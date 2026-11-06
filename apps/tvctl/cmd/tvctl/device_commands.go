@@ -103,6 +103,11 @@ func (a *app) copyFile(
 	})
 }
 
+var pngEnd = []byte("IEND\xaeB`\x82")
+
+const screenshotCutShort = "the screenshot stopped after %d bytes, before the PNG's end: " +
+	"the connection dropped mid-picture; nothing was written, take it again"
+
 func (a *app) screencap(args []string) error {
 	if len(args) != 1 {
 		return usageError("screencap <file.png>")
@@ -115,6 +120,9 @@ func (a *app) screencap(args []string) error {
 		}
 		if !bytes.HasPrefix(png, []byte("\x89PNG")) {
 			return fmt.Errorf("the TV did not return a PNG: %.200s", png)
+		}
+		if !bytes.HasSuffix(png, pngEnd) {
+			return fmt.Errorf(screenshotCutShort, len(png))
 		}
 		return os.WriteFile(args[0], png, 0o644)
 	})

@@ -19,6 +19,7 @@ var corePackages = []string{
 	"com.android.providers.media", "com.android.providers.downloads",
 	"android.ext.services", "android.ext.shared",
 	"com.cltv.mal", "com.mediatek.tis", "com.mediatek.tv.service", "com.mediatek.tv.agent",
+	"com.android.sdksandbox", "com.android.location.fused",
 }
 
 var lookAlikesThatAreNotCore = []string{
@@ -30,6 +31,8 @@ var lookAlikesThatAreNotCore = []string{
 	"com.example.android.ext.services", "android.ext.services.overlay",
 	"android.ext.sharedlib", "android.extservices",
 	"com.cltv.fast", "com.cltv.hybrid", "com.mediatek.tv.settings", "com.mediatek.tis.overlay",
+	"com.android.sdksandbox.overlay", "com.android.location.fused2",
+	"com.google.android.gms.location",
 }
 
 func TestEveryCorePackageIsRefused(t *testing.T) {
