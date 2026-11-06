@@ -1,0 +1,10 @@
+{
+  "dock_apps": [
+    "com.yandex.tv.ytplayer",
+    "ru.kinopoisk.yandex.tv"
+  ],
+  "hidden_apps": [
+    "com.yandex.tv.home"
+  ],
+  "reduced_motion": true
+}

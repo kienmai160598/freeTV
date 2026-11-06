@@ -1,0 +1,10 @@
+{
+  "live_tv_package": "com.mediatek.wwtv.tvcenter",
+  "hidden_apps": [],
+  "dock_apps": [
+    "com.mediatek.wwtv.tvcenter",
+    "com.google.android.youtube.tv",
+    "com.netflix.ninja",
+    "com.amazon.amazonvideo.livingroom"
+  ]
+}
