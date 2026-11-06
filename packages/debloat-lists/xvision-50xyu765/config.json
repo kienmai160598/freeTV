@@ -1,0 +1,8 @@
+{
+  "hidden_apps": [
+    "com.android.traceur"
+  ],
+  "live_tv_package": "",
+  "source_panel_service": "com.cvte.tv.globalui/.InputSourceActivity",
+  "key_filter": false
+}

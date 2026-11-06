@@ -1,0 +1,14 @@
+{
+  "dock_apps": [
+    "com.netflix.ninja",
+    "com.google.android.youtube.tv",
+    "com.ais.mimo.aisplay.tv",
+    "com.viu.tv",
+    "com.apple.android.music"
+  ],
+  "hidden_apps": [
+    "com.mediatek.wwtv.tvcenter"
+  ],
+  "live_tv_package": "",
+  "columns": 5
+}

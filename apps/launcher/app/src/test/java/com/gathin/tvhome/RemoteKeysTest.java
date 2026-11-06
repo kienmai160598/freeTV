@@ -1,5 +1,6 @@
 package com.gathin.tvhome;
 
+import android.view.KeyEvent;
 import java.util.Map;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -25,6 +26,13 @@ public class RemoteKeysTest {
         assertEquals(2, keys.size());
         assertEquals("com.google.android.youtube.tv", keys.get(190));
         assertEquals("com.netflix.ninja", keys.get(193));
+    }
+
+    @Test public void onlyChannelUpAndDownAreChannelKeys() {
+        assertTrue(RemoteKeys.isChannelKey(KeyEvent.KEYCODE_CHANNEL_UP));
+        assertTrue(RemoteKeys.isChannelKey(KeyEvent.KEYCODE_CHANNEL_DOWN));
+        assertFalse(RemoteKeys.isChannelKey(KeyEvent.KEYCODE_DPAD_UP));
+        assertFalse(RemoteKeys.isChannelKey(KeyEvent.KEYCODE_TV));
     }
 
     @Test public void badEntriesAreSkipped() {

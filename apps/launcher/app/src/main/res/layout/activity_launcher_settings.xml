@@ -98,6 +98,7 @@
                 <TextView style="@style/SettingsSheetLabel" android:text="@string/settings_group_system" />
                 <LinearLayout style="@style/SettingsSheetGroup">
                     <TextView android:id="@+id/tvSettingsChoice" style="@style/SettingsListItem" />
+                    <TextView android:id="@+id/runningAppsChoice" style="@style/SettingsListItem" />
                     <TextView android:id="@+id/defaultInfo" style="@style/SettingsListItem" />
                     <TextView android:id="@+id/stockInfo" style="@style/SettingsListItem" />
                     <TextView android:id="@+id/updateChoice" style="@style/SettingsListItem" />

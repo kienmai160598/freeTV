@@ -178,6 +178,7 @@
 
     <!-- Running apps panel -->
     <string name="running_apps">Ứng dụng đang chạy</string>
+    <string name="running_apps_desc">Xem và dừng ứng dụng chạy ngầm</string>
     <string name="running_connecting">Đang kết nối với TV</string>
     <string name="running_allow">Nếu TV hỏi cho phép gỡ lỗi, tick Luôn cho phép rồi chọn Cho phép</string>
     <string name="running_off">ADB qua mạng đang tắt. Chạy adb tcpip 5555 từ máy tính rồi thử lại.</string>

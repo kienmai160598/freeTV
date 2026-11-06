@@ -117,6 +117,13 @@ public final class LauncherSettingsActivity extends Activity {
         tvSettingsChoice.setText(getString(R.string.tv_settings));
         tvSettingsChoice.setCompoundDrawablesRelativeWithIntrinsicBounds(icon(R.drawable.ic_settings), null,
                 icon(R.drawable.ic_open_in_new), null);
+        TextView runningAppsChoice = findViewById(R.id.runningAppsChoice);
+        runningAppsChoice.setText(item(getString(R.string.running_apps),
+                getString(R.string.running_apps_desc)));
+        runningAppsChoice.setCompoundDrawablesRelativeWithIntrinsicBounds(icon(R.drawable.ic_memory),
+                null, null, null);
+        runningAppsChoice.setOnClickListener(
+                v -> open(new Intent(this, RunningAppsActivity.class)));
         TextView rebootChoice = findViewById(R.id.rebootChoice);
         rebootChoice.setText(item(getString(R.string.reboot), getString(R.string.reboot_desc)));
         rebootChoice.setCompoundDrawablesRelativeWithIntrinsicBounds(icon(R.drawable.ic_power), null, null, null);
@@ -217,7 +224,7 @@ public final class LauncherSettingsActivity extends Activity {
         home.setText(item(getString(R.string.about_default),
                 getString(isDefault ? R.string.about_default_yes : R.string.about_default_no)));
         home.setCompoundDrawablesRelativeWithIntrinsicBounds(icon(R.drawable.ic_home), null, null, null);
-        home.setOnClickListener(v -> open(new Intent(Settings.ACTION_HOME_SETTINGS)));
+        home.setOnClickListener(v -> open(new Intent(this, HomeSettingsActivity.class)));
 
         TextView stock = findViewById(R.id.stockInfo);
         int setting;

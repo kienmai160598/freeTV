@@ -25,6 +25,10 @@ final class RemoteKeys {
 
     private RemoteKeys() { }
 
+    static boolean isChannelKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_CHANNEL_UP || keyCode == KeyEvent.KEYCODE_CHANNEL_DOWN;
+    }
+
     static boolean handle(Context ctx, KeyEvent event, String target) {
         if (target == null) return false;
 

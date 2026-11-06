@@ -24,8 +24,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The running apps panel, opened by a remote button through InputKeyService: a side sheet over whatever
- * is on screen listing the apps that still have a process, with the memory each holds. OK switches to
+ * The running apps panel, opened by a remote button through InputKeyService, the quick settings panel or
+ * Home's Settings menu: a side sheet over whatever is on screen listing the apps that still have a
+ * process, with the memory each holds. OK switches to
  * one, holding OK force-stops it, Stop all stops every one. Reading and stopping go through
  * {@link LocalAdb}, since Android 14 lets no normal app do either. Translucent and in a task of its
  * own like the quick settings panel; the button again, Back or anything taking the screen closes it.

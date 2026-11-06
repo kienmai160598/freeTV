@@ -23,6 +23,11 @@ const unsetADBSecureWarning = "Warning: this TV does not set ro.adb.secure. On a
 	"(userdebug) build or Android 4.4 that is the same as ro.adb.secure=0: network ADB on port " +
 	"5555 accepts any device on your network without the \"Allow\" prompt.\n" + turnADBOffAdvice
 
+const batchStoppedEarly = "the batch stopped before the end of the list: %w\n" +
+	"The command it was on may or may not have reached the TV, and the ones after it " +
+	"were not sent. Once the TV answers again (scripts/tvctl probe), run the list once " +
+	"more; do not run it again in a loop"
+
 func Disable(
 	dev tv.Device,
 	recordPath, listPath, host string,
@@ -46,7 +51,8 @@ func Disable(
 	}
 
 	if err := tv.Batch(dev, disableCommands(targets), out); err != nil {
-		return err
+		fmt.Fprint(warn, adbWarning)
+		return fmt.Errorf(batchStoppedEarly, err)
 	}
 
 	fmt.Fprint(warn, tv.RebootDelayNotice)

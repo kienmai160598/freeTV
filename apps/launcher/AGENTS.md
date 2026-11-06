@@ -12,7 +12,7 @@ Locales: English and Vietnamese only.
 |---|---|
 | `.MainActivity` | Home: header, widget shelf, dock, grid, Inputs/network/settings pills |
 | `.LauncherSettingsActivity`, `.QuickSettingsActivity`, `.HomeSettingsActivity` | On-TV settings (side sheet), gear-key panel, default-home picker |
-| `.RunningAppsActivity` | Running apps side sheet: switch to or force-stop apps, through `LocalAdb` |
+| `.RunningAppsActivity` | Running apps side sheet: switch to or force-stop apps, through `LocalAdb`; opened by `running_apps_keycodes`, the gear-key panel, Launcher settings > System and Home's Settings menu (hold OK) |
 | `.InputKeyService` | Accessibility: Input button (`KEYCODE_TV`, `KEYCODE_TV_INPUT`, `input_key_keycodes`, Menu if `menu_opens_inputs`), `app_keys`, `running_apps_keycodes`; no system switcher: Home's Inputs menu |
 | `.HomeKeyService` | Accessibility: Home that sends `KEYCODE_ALL_APPS`, `settings_key_*`, `app_keys`; stands in for Home where the firmware keeps it (Xiaomi CN): `KEYCODE_HOME` and any other HOME activity coming to the front (the stock launcher, or Settings' FallbackHome once the stock one is disabled) open this one, 300 ms after it settles. `directBootAware` (Android 11 TCL skips other services at boot); it passes every key through until the user is unlocked |
 | `.ClockDream` | Clock screensaver; style from Launcher settings (shapes, glow, minimal, large) |
@@ -37,6 +37,9 @@ Locales: English and Vietnamese only.
 - Module cards: `Cards`, `CardFeature`. Remote keys: `RemoteKeys` (each press launches once, though
   both services get it), `GamepadPassthrough`, `ServiceRepair`, `VolumeKeys`, `PowerOnHome`.
   VPN pill badge: `VpnBadge`.
+- Clocks: `ClockRefresh` redraws Home's and the screensaver's TextClocks each minute and when the
+  display comes back on, below Android 12, where some firmware stops `ACTION_TIME_TICK` after standby.
+- Stats line: `MemInfo` (MemAvailable, or MemFree + Buffers + Cached on kernels before 3.14).
 - Memory: `MemoryTrimPolicy`; Home drops the wallpaper bitmap on `TRIM_MEMORY_BACKGROUND` and up (or
   `RUNNING_LOW`/`CRITICAL`) while stopped, and decodes it again when it resumes.
 - Updates: `LauncherRelease` (GitHub `releases/latest` of kienmai160598/freeTV, checked once when
@@ -56,12 +59,13 @@ Unknown or mistyped theme keys are ignored; a theme that does not parse is ignor
 |---|---|
 | `dock_apps`, `fill_dock`, `hidden_apps` | Dock order; fill free dock slots with grid apps; never-shown packages |
 | `columns` (1-8), `rows_below_dock` (0-3), `dock_row`, `dock_title`, `reorder_button` | Grid and dock layout |
-| `live_tv_package`, `live_tv_action`, `source_panel_service`, `source_panel_action`, `input_action` | Live TV and input switching on odd firmware |
+| `live_tv_package`, `live_tv_action`, `source_panel_service`, `source_panel_action`, `input_action` | Live TV and input switching on odd firmware; `input_action` as `"pkg/.Activity"` starts that source picker ahead of the channel URI (`InputAction`, Redmi X65) |
 | `input_key_keycodes`, `app_keys` (`"190:pkg"` or `"190:pkg/.Activity"`; keycodes from 1000 up, such as TCL's Netflix 4062, also work on Home itself), `settings_key_keycodes`, `settings_key_scancodes`, `settings_key_panel` | Remote buttons for the key services |
 | `key_filter` (on), `gamepad_passthrough` (off) | The key services filter keys at all (off: TCL Google TV 12 keeps key repeat, the buttons go dead); stop filtering while a game controller is connected (`GamepadPassthrough`) |
 | `restore_key_services` (off) | After a force stop, Home puts the key services that were running back on `enabled_accessibility_services` (`ServiceRepair`, needs `WRITE_SECURE_SETTINGS`): add, remove, add, a second apart, so Android drops its crashed mark; each write goes ahead only while the list still reads what the last step left |
 | `consume_volume_keys` (off) | With `key_filter` on, the key services swallow Volume Up/Down and repeat a held one themselves (`VolumeKeys`, 500 ms then every 60 ms), for firmware that applies a filtered volume key twice (TCL G03, Android 11) |
 | `power_on_home` (off) | With `key_filter` on, `HomeKeyService` sends a `live_tv_package` window back to Home until the first key in the 3 minutes after boot or the minute after screen-on (`PowerOnHome`), for firmware that opens Live TV at every power-on |
+| `home_ignore_channel_keys` (off) | Channel Up/Down do nothing while Home is in front, instead of opening the TV's Live TV app (Sony BRAVIA, Android 9) |
 | `running_apps_keycodes` (`config.xml` only, not in the contract) | Buttons that open the running apps panel; 284 `KEYCODE_ALL_APPS`, 187 `KEYCODE_APP_SWITCH` |
 | `animations`, `advanced_effects`, `reduced_motion` | Motion level; reduced for weak GPUs (MediaTek MT5895) |
 | `background_color`, `wallpaper`, `wallpaper_rotation_minutes` (0-1440), `wallpaper_dim` (0-90), `sky_intensity` (0-100) | Backdrop; seeds the colour scheme |

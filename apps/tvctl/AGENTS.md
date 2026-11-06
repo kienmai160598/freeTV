@@ -19,7 +19,8 @@ Go 1.22, standard library only. Module `github.com/kienmai160598/freeTV/apps/tvc
 - A list is refused as a whole if any entry is not a bare package name; BOM and CRLF are stripped.
 - A list naming a core Android package (`android`, SystemUI, Settings, permission controller,
   package installer, ext services/shared also under the bare `android.ext.*` names, providers
-  other than calendar/contacts/dictionary/blocked numbers, the Google module overlays) or TV
+  other than calendar/contacts/dictionary/blocked numbers, the Google module overlays, the SDK
+  sandbox, `com.android.location.fused`, whose loss boot-looped a TCL 43S5400A) or TV
   middleware (`com.cltv.mal`, `com.mediatek.tis`, `com.mediatek.tv.service|agent`) is refused,
   with no override flag: the TV may not boot again.
 - `disable`: guards first (setupwraith while it owns Wi-Fi; the Home owner while no other launcher
@@ -28,7 +29,8 @@ Go 1.22, standard library only. Module `github.com/kienmai160598/freeTV/apps/tvc
   never count as launchers), then the recovery record is written, then `pm disable-user --user 0`
   per package, then `pm list packages -d`. Home comes from `cmd package resolve-activity`, else
   from `dumpsys activity`; when neither names one the guard is skipped with a warning.
-  `ro.adb.secure` of `0` or empty gets a warning; a failed read gets none.
+  `ro.adb.secure` of `0` or empty gets a warning; a failed read gets none. A batch that dies
+  mid-list still prints that warning and fails with an error saying where it stopped.
 - `disable`, `restore` and `install` end with `tv.RebootDelayNotice`: Android writes package
   state about 10 s after a change, so a reboot within 15 s boots with the old state.
 - Recovery record: `~/.cleanyourtv/recovery-<host>-<sha1(resolved list path)[:8]>.json`, JSON with
@@ -41,7 +43,10 @@ Go 1.22, standard library only. Module `github.com/kienmai160598/freeTV/apps/tvc
   that is not ours is set again; ours stays Home unless the stock launcher was recorded enabled;
   no Home and the stock one recorded disabled/absent leaves Home alone; else resolve-and-set the
   stock one. No record: falls back to enabling the whole list and the stock launcher, unless
-  other records exist for that host, then it asks for `--record`.
+  other records exist for that host, then it asks for `--record`. Records for the same list
+  under another address (a new DHCP lease) are named first, with the `--record` way out.
+- `screencap` refuses a PNG without its IEND end; `pull` writes `<file>.part` and renames it,
+  so a failed pull leaves the local file as it was.
 - `install`: push APK to `/data/local/tmp`, `pm install -r`, `am start -W` must say `Status: ok`
   with no `Error` line, then disable stock and set Home, then confirm Home; else roll back and, if
   that fails too, write `~/freeTV-handover-<host>.txt`.

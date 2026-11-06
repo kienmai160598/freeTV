@@ -8,7 +8,7 @@ import (
 
 var (
 	corePackage = regexp.MustCompile(`^(android|android\.ext\.(services|shared)|` +
-		`com\.android\.(systemui|shell|phone|settings|tv\.settings)|` +
+		`com\.android\.(systemui|shell|phone|settings|tv\.settings|sdksandbox|location\.fused)|` +
 		`com\.(google\.)?android\.(permissioncontroller|packageinstaller|` +
 		`ext\.services|ext\.shared|modulemetadata)|` +
 		`com\.google\.android\.overlay\.modules.*|` +
