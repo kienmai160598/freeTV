@@ -199,6 +199,7 @@
 
     <!-- Running apps panel (the remote's Apps button; stops apps through adb on the TV itself) -->
     <string name="running_apps">Running apps</string>
+    <string name="running_apps_desc">See what runs in the background and stop it</string>
     <string name="running_connecting">Connecting to the TV</string>
     <string name="running_allow">If the TV asks to allow debugging, tick Always allow and choose Allow</string>
     <string name="running_off">Network adb is off. Run adb tcpip 5555 from a computer, then try again.</string>

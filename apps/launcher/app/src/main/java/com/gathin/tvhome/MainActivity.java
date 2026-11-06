@@ -2542,13 +2542,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         startActivity(new Intent(this, LauncherSettingsActivity.class));
     }
 
-    /** Hold OK on Settings: the launcher's menu (settings, module cards, dock and order editing). */
+    private void openRunningApps() {
+        startActivity(new Intent(this, RunningAppsActivity.class));
+    }
+
+    /** Hold OK on Settings: the launcher's menu (settings, running apps, module cards, dock and order editing). */
     private void showSettingsMenu() {
         View anchor = findViewById(R.id.btnSettings);
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
         LinearLayout rows = panel.findViewById(R.id.rows);
         PopupWindow popup = glassPopup(panel, (int) (200 * density));
         addSettingsMenuRow(rows, popup, R.string.launcher_settings, this::openLauncherSettings);
+        addSettingsMenuRow(rows, popup, R.string.running_apps, this::openRunningApps);
         if (moduleCards) addSettingsMenuRow(rows, popup, R.string.module_cards, this::showModuleCards);
         addSettingsMenuRow(rows, popup, reordering ? R.string.edit_home_done : R.string.edit_home, this::toggleReorder);
         skin(panel);

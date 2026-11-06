@@ -12,7 +12,7 @@ Locales: English and Vietnamese only.
 |---|---|
 | `.MainActivity` | Home: header, widget shelf, dock, grid, Inputs/network/settings pills |
 | `.LauncherSettingsActivity`, `.QuickSettingsActivity`, `.HomeSettingsActivity` | On-TV settings (side sheet), gear-key panel, default-home picker |
-| `.RunningAppsActivity` | Running apps side sheet: switch to or force-stop apps, through `LocalAdb` |
+| `.RunningAppsActivity` | Running apps side sheet: switch to or force-stop apps, through `LocalAdb`; opened by `running_apps_keycodes`, the gear-key panel, Launcher settings > System and Home's Settings menu (hold OK) |
 | `.InputKeyService` | Accessibility: Input button (`KEYCODE_TV`, `KEYCODE_TV_INPUT`, `input_key_keycodes`, Menu if `menu_opens_inputs`), `app_keys`, `running_apps_keycodes`; no system switcher: Home's Inputs menu |
 | `.HomeKeyService` | Accessibility: Home that sends `KEYCODE_ALL_APPS`, `settings_key_*`, `app_keys`; stands in for Home where the firmware keeps it (Xiaomi CN): `KEYCODE_HOME` and any other HOME activity coming to the front (the stock launcher, or Settings' FallbackHome once the stock one is disabled) open this one, 300 ms after it settles. `directBootAware` (Android 11 TCL skips other services at boot); it passes every key through until the user is unlocked |
 | `.ClockDream` | Clock screensaver; style from Launcher settings (shapes, glow, minimal, large) |
