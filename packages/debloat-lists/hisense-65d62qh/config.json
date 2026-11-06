@@ -1,4 +1,5 @@
 {
+  "key_filter": false,
   "app_library": true,
   "live_tv_package": "com.jamdeo.tv.livetv",
   "source_panel_service": "com.hisense.tv.inputs/com.hisense.tv.InputsUIService",
