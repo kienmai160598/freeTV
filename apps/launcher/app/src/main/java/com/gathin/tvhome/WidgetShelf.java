@@ -157,10 +157,10 @@ final class WidgetShelf {
     private static final int[] WEATHER_PAGE_NAMES = {R.string.page_now, R.string.page_details, R.string.page_tomorrow};
     private static final int[] AIR_PAGE_NAMES = {R.string.page_today, R.string.page_tomorrow};
     /** The places offered, as geocoder queries ("name|country"); "" is wherever the IP says. */
-    private static final String[] CITY_QUERIES = {"", "Hanoi|VN", "Ho Chi Minh City|VN", "Da Nang|VN", "Haiphong|VN",
-            "Can Tho|VN", "Hue|VN", "Nha Trang|VN", "Da Lat|VN"};
-    private static final String[] CITY_NAMES = {null, "Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Hải Phòng",
-            "Cần Thơ", "Huế", "Nha Trang", "Đà Lạt"};
+    private static final String[] CITY_QUERIES = {"", "Hanoi|VN", "Ho Chi Minh City|VN", "Bien Hoa|VN",
+            "Da Nang|VN", "Haiphong|VN", "Can Tho|VN", "Hue|VN", "Nha Trang|VN", "Da Lat|VN"};
+    private static final String[] CITY_NAMES = {null, "Hà Nội", "TP. Hồ Chí Minh", "Biên Hòa (Đồng Nai)",
+            "Đà Nẵng", "Hải Phòng", "Cần Thơ", "Huế", "Nha Trang", "Đà Lạt"};
     private final Host host;
     private Palette palette = Palette.currentOrBaseline();
     private boolean enabled, started;
